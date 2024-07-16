@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import type * as Puppeteer from 'puppeteer';
 import puppeteer from 'puppeteer';
 
 @Injectable()
@@ -8,30 +9,44 @@ export class FinderService {
 
   logger = new Logger();
 
-  async newsList() {
-    const list_cssSelector = '.css-14d7djd .css-5bvwfc + div .css-1q4wrpt';
+  private browser: Puppeteer.Browser;
+  private page: Puppeteer.Page;
+
+  async onApplicationBootstrap() {
+    await this.initBrowserPage();
+  }
+
+  async beforeApplicationShutdown() {
+    await this.closeBrowserPage();
+  }
+
+  async initBrowserPage() {
+    this.browser = await puppeteer.launch({
+      headless: false,
+      executablePath: this.CHROME_APP_PATH,
+    });
+    this.page = await this.browser.newPage();
+  }
+
+  async closeBrowserPage() {
     try {
-      // scarping - open browser
-      const browser = await puppeteer.launch({
-        headless: true,
-        executablePath: this.CHROME_APP_PATH,
-      });
-      const page = await browser.newPage();
-      await page.setRequestInterception(true);
-      page.on('request', (request) => {
-        const resourceType = request.resourceType();
-        const acceptedResourceTypes = ['document', 'xhr', 'fetch', 'script'];
-        if (acceptedResourceTypes.includes(resourceType)) {
-          request.continue();
-        } else {
-          request.abort();
-        }
-      });
+      await this.browser?.close();
+      return true;
+    } catch (error) {
+      this.logger.error(`Cannot close browser - ${error}`, error.stack);
+      return false;
+    }
+  }
+
+  async newsList() {
+    try {
+      if (!this.browser) return;
+      const list_cssSelector = '.css-14d7djd .css-5bvwfc + div .css-1q4wrpt';
       // scarping - load page
-      await page.goto(this.LINK_BINANCE_NEW_CRYPTO_LIST);
-      await page.waitForSelector(list_cssSelector);
+      await this.page.goto(this.LINK_BINANCE_NEW_CRYPTO_LIST);
+      await this.page.waitForSelector(list_cssSelector);
       // scarping - chose section
-      const data = await page.evaluate((list_cssSelector) => {
+      const data = await this.page.evaluate((list_cssSelector) => {
         const list = document.querySelectorAll(list_cssSelector)[1];
         const target = [];
         list.querySelectorAll('div > div').forEach((el) => {
@@ -48,11 +63,9 @@ export class FinderService {
         });
         return target;
       }, list_cssSelector);
-      console.log({ data });
-      await browser.close();
       return data;
     } catch (error) {
-      this.logger.error(error, error.stack);
+      this.logger.error(`Cannot get data from binance - ${error}`, error.stack);
     }
   }
 }
