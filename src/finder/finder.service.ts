@@ -22,7 +22,7 @@ export class FinderService {
 
   async initBrowserPage() {
     this.browser = await puppeteer.launch({
-      headless: false,
+      headless: true,
       executablePath: this.CHROME_APP_PATH,
     });
     this.page = await this.browser.newPage();
@@ -46,26 +46,52 @@ export class FinderService {
       await this.page.goto(this.LINK_BINANCE_NEW_CRYPTO_LIST);
       await this.page.waitForSelector(list_cssSelector);
       // scarping - chose section
-      const data = await this.page.evaluate((list_cssSelector) => {
+      const data: {
+        url: string;
+        news_title: string;
+        date: string;
+      }[] = await this.page.evaluate((list_cssSelector) => {
         const list = document.querySelectorAll(list_cssSelector)[1];
         const target = [];
         list.querySelectorAll('div > div').forEach((el) => {
           const result = {
-            url: el.querySelector('a').href,
-            newsTitle: el.querySelector('div').innerText,
-            date: el.querySelector('div h6').innerHTML,
+            news_url: el.querySelector('a').href,
+            news_title: el.querySelector('div').innerText,
+            news_date: el.querySelector('div h6').innerHTML,
           };
-          result.newsTitle = result.newsTitle.slice(
+          result.news_title = result.news_title.slice(
             0,
-            result.newsTitle.length - result.date.length,
+            result.news_title.length - result.news_date.length,
           );
           target.push(result);
         });
+
         return target;
       }, list_cssSelector);
       return data;
     } catch (error) {
       this.logger.error(`Cannot get data from binance - ${error}`, error.stack);
     }
+  }
+
+  async isTargetNews() {
+    const newList = await this.newsList();
+    const rgxPattern = /Binance Will List (.+) \((.+)\).* with .+/gi;
+
+    const newCryptoWillList = newList
+      .map((item) => {
+        const matched = [...item.news_title.matchAll(rgxPattern)]?.[0];
+        if (matched) {
+          return {
+            ...item,
+            crypto_name: matched[1],
+            crypto_symbol: matched[2],
+          };
+        } else return undefined;
+      })
+      .filter((item) => item);
+      // check is new? (from db)
+      // if true -> analys & save on db
+      // if false -> reject and don't continue
   }
 }
