@@ -7,6 +7,6 @@ export class FinderController {
 
   @Get()
   newsList() {
-    return this.finderService.newsList();
+    return this.finderService.checkTargetNews();
   }
 }
