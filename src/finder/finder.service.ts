@@ -60,32 +60,29 @@ export class FinderService {
       await this.page.goto(this.LINK_BINANCE_NEW_CRYPTO_LIST);
       await this.page.waitForSelector(list_cssSelector);
       // scarping - chose section
-      const data: BinanceNews[] = await this.page.evaluate(
-        (list_cssSelector) => {
-          const list = document.querySelectorAll(list_cssSelector)[1];
-          let target = [];
-          list.querySelectorAll('div > div').forEach((el) => {
-            const result = {
-              news_url: el.querySelector('a')?.href,
-              news_title: el.querySelector('div')?.innerText,
-              news_date: el.querySelector('div h6')?.innerHTML,
-            };
-            result.news_title = result.news_title.slice(
-              0,
-              result.news_title.length - result.news_date.length,
-            );
-            target.push(result);
-          });
-          const request_end = new Date();
-          target = target.map((news) => ({
-            ...news,
-            request_start,
-            request_end,
-          }));
-          return target;
-        },
-        list_cssSelector,
-      );
+      let data: BinanceNews[] = await this.page.evaluate((list_cssSelector) => {
+        const list = document.querySelectorAll(list_cssSelector)[1];
+        let target = [];
+        list.querySelectorAll('div > div').forEach((el) => {
+          const result = {
+            news_url: el.querySelector('a')?.href,
+            news_title: el.querySelector('div')?.innerText,
+            news_date: el.querySelector('div h6')?.innerHTML,
+          };
+          result.news_title = result.news_title.slice(
+            0,
+            result.news_title.length - result.news_date.length,
+          );
+          target.push(result);
+        });
+        return target;
+      }, list_cssSelector);
+      const request_end = new Date();
+      data = data.map((news) => ({
+        ...news,
+        request_start,
+        request_end,
+      }));
       return data;
     } catch (error) {
       this.logger.error(`Cannot get data from binance - ${error}`, error.stack);
