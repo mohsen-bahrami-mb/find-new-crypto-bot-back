@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { FinderModule } from './finder/finder.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { TradeModule } from './trade/trade.module';
+import { BrowserModule } from './browser/browser.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { TradeModule } from './trade/trade.module';
     }),
     FinderModule,
     TradeModule,
+    BrowserModule,
   ],
   controllers: [AppController],
   providers: [AppService],

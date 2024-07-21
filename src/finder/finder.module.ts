@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, OnModuleInit } from '@nestjs/common';
 import { FinderService } from './finder.service';
 import { FinderController } from './finder.controller';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -8,6 +8,7 @@ import { TradeService } from 'src/trade/trade.service';
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Finder.name, schema: FinderSchema }]),
+    // BrowserModule,
   ],
   providers: [FinderService, TradeService],
   controllers: [FinderController],

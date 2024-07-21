@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Model } from 'mongoose';
 import type * as Puppeteer from 'puppeteer';
 import puppeteer from 'puppeteer';
@@ -6,54 +6,38 @@ import { BinanceNews } from 'src/types/finder.type';
 import { Finder } from './schema/finder.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { TradeService } from 'src/trade/trade.service';
+import { BrowserService } from 'src/browser/browser.service';
+import { ModuleRef } from '@nestjs/core';
 
 @Injectable()
 export class FinderService {
-  CHROME_APP_PATH = process.env.CHROME_APP_PATH;
   LINK_BINANCE_NEW_CRYPTO_LIST = process.env.LINK_BINANCE_NEW_CRYPTO_LIST;
-  finderModel: Model<Finder>;
-
   logger = new Logger();
 
-  private browser: Puppeteer.Browser;
+  finderModel: Model<Finder>;
+
   private page: Puppeteer.Page;
 
   constructor(
     @InjectModel(Finder.name) private FinderModel: Model<Finder>,
     private readonly tradeService: TradeService,
+    private browserService: BrowserService,
   ) {
     this.finderModel = FinderModel;
   }
 
   async onApplicationBootstrap() {
-    await this.initBrowserPage();
+    if (this.browserService.browser) await this.initPage();
   }
 
-  async beforeApplicationShutdown() {
-    await this.closeBrowserPage();
-  }
-
-  public async initBrowserPage() {
-    this.browser = await puppeteer.launch({
-      headless: true,
-      executablePath: this.CHROME_APP_PATH,
-    });
-    this.page = await this.browser.newPage();
-  }
-
-  public async closeBrowserPage() {
-    try {
-      await this.browser?.close();
-      return true;
-    } catch (error) {
-      this.logger.error(`Cannot close browser - ${error}`, error.stack);
-      return false;
-    }
+  public async initPage() {
+    this.page = await this.browserService.browser.newPage();
   }
 
   private async newsList() {
     try {
-      if (!this.browser) return;
+      if (!this.browserService.browser) return;
+      if (!this.page) await this.initPage();
       const list_cssSelector = '.css-14d7djd .css-5bvwfc + div .css-1q4wrpt';
       // scarping - load page
       const request_start = new Date();
