@@ -140,8 +140,8 @@ export class FinderService {
       .filter((item) => item);
     const newCryptos = await this.isNewOne(newCryptoWillList);
     if (newCryptos.length) {
-      await this.finderModel.insertMany(newCryptos);
       this.tradeService.newCryptos(newCryptos);
+      await this.finderModel.insertMany(newCryptos);
     }
   }
 }

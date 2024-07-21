@@ -23,6 +23,12 @@ export class Finder {
 
   @Prop({ type: Types.ObjectId, ref: Trade.name })
   trade?: Types.ObjectId;
+
+  @Prop({ type: Date, required: true })
+  request_start: Date;
+
+  @Prop({ type: Date, required: true })
+  request_end: Date;
 }
 
 export const FinderSchema = SchemaFactory.createForClass(Finder);
