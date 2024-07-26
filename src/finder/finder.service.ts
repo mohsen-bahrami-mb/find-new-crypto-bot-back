@@ -1,13 +1,11 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Model } from 'mongoose';
 import type * as Puppeteer from 'puppeteer';
-import puppeteer from 'puppeteer';
 import { BinanceNews } from 'src/types/finder.type';
 import { Finder } from './schema/finder.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { TradeService } from 'src/trade/trade.service';
 import { BrowserService } from 'src/browser/browser.service';
-import { ModuleRef } from '@nestjs/core';
 
 @Injectable()
 export class FinderService {
