@@ -12,8 +12,10 @@ export class TradeService {
   LINK_MEXC_TRADE_PAGE = 'https://www.mexc.com/exchange';
   GateIoPage: Puppeteer.Page;
   MexcPage: Puppeteer.Page;
-  logger = new Logger();
+  isLoginGateIoPage = false;
+  isLoginMexcPage = false;
   maximumRequstTime = 20000; // in miliseconds
+  logger = new Logger();
 
   constructor(private browserService: BrowserService) {}
 
@@ -65,8 +67,10 @@ export class TradeService {
   }
 
   async GateIoUserIsLogin() {
+    if (this.isLoginGateIoPage) return true;
     const loginBtn = await this.GateIoPage.$('#loginLink');
     if (loginBtn) return false;
+    this.isLoginGateIoPage = true;
     return true;
   }
 
@@ -128,12 +132,18 @@ export class TradeService {
   }
 
   async MexcUserIsLogin() {
+    if (this.isLoginMexcPage) return true;
     const loginBtnSelector = '.header_registerBtn__fsUiv.header_authBtn__Gch60';
     const loginBtn = await this.MexcPage.$(loginBtnSelector);
     const url = this.MexcPage.url();
-    if (url !== this.LINK_MEXC_LOGIN_PAGE && loginBtn) return false;
-    else if (url !== this.LINK_MEXC_LOGIN_PAGE && !loginBtn) return true;
-    else return undefined;
+    if (url !== this.LINK_MEXC_LOGIN_PAGE && loginBtn) {
+      return false;
+    } else if (url !== this.LINK_MEXC_LOGIN_PAGE && !loginBtn) {
+      this.isLoginMexcPage = true;
+      return true;
+    } else {
+      return undefined;
+    }
   }
 
   async MexcBuyCrypto() {
