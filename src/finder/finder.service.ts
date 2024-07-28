@@ -29,6 +29,7 @@ export class FinderService {
   }
 
   public async initPage() {
+    this.page?.close();
     this.page = await this.browserService.browser.newPage();
   }
 

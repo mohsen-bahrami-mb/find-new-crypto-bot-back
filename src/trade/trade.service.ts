@@ -6,23 +6,37 @@ import { Response, Request } from 'express';
 
 @Injectable()
 export class TradeService {
-  maximumRequstTime = 20000; // in miliseconds
   LINK_GATEIO_LOGIN_PAGE = 'https://www.gate.io/login';
   LINK_GATEIO_TRADE_PAGE = 'https://www.gate.io/trade';
+  LINK_MEXC_LOGIN_PAGE = 'https://www.mexc.com/login';
+  LINK_MEXC_TRADE_PAGE = 'https://www.mexc.com/exchange';
+  GateIoPage: Puppeteer.Page;
+  MexcPage: Puppeteer.Page;
   logger = new Logger();
-  gateIoPage: Puppeteer.Page;
+  maximumRequstTime = 20000; // in miliseconds
 
   constructor(private browserService: BrowserService) {}
 
   async onApplicationBootstrap() {
-    if (this.browserService.browser) await this.initGateIoPage();
+    if (this.browserService.browser) {
+      await this.initGateIoPage();
+      await this.initMexcPage();
+    }
   }
 
-  public async initGateIoPage() {
-    this.gateIoPage = await this.browserService.browser.newPage();
+  async initGateIoPage() {
+    this.GateIoPage?.close();
+    this.GateIoPage = await this.browserService.browser.newPage();
+    await this.GateIoPage.setViewport({ width: 1200, height: 700 });
   }
 
-  public newCryptos(newCryptosList: BinanceNews[]) {
+  async initMexcPage() {
+    this.MexcPage?.close();
+    this.MexcPage = await this.browserService.browser.newPage();
+    await this.MexcPage.setViewport({ width: 1200, height: 700 });
+  }
+
+  newCryptos(newCryptosList: BinanceNews[]) {
     const whiteList = newCryptosList
       .map((crypto) => {
         const startTime = crypto.request_start.getTime();
@@ -36,28 +50,28 @@ export class TradeService {
     // cron job to check the trade in cron job
   }
 
-  async GateIoCheckCryptoExist() {
+  // gateio trade
+  async GateIoCheckCryptoExist(crypto_symbol: string) {
     if (!(await this.GateIoUserIsLogin())) return;
     // check cryto exist with usdt
-    const crypto_symbol = 'ZRO';
     const trade_symbol = `${crypto_symbol}_USDT`;
     const rgxPattern = /(.+\/)(.+)$/g;
-    await this.gateIoPage.goto(
+    await this.GateIoPage.goto(
       `${this.LINK_GATEIO_TRADE_PAGE}/${trade_symbol}`,
     );
-    const url = this.gateIoPage.url();
+    const url = this.GateIoPage.url();
     const matchPath = [...url.matchAll(rgxPattern)][0][2];
     if (trade_symbol === matchPath) await this.GateIoBuyCrypto();
   }
 
   async GateIoUserIsLogin() {
-    const loginBtn = await this.gateIoPage.$('#loginLink');
+    const loginBtn = await this.GateIoPage.$('#loginLink');
     if (loginBtn) return false;
     return true;
   }
 
   async GateIoBuyCrypto() {
-    const notifHTMLStr = await this.gateIoPage.evaluate(() => {
+    const notifHTMLStr = await this.GateIoPage.evaluate(() => {
       const marketOrderTypeSelector =
         '.tr-font-medium.trade-mode-list-item span';
       const availablePrecentageSelector =
@@ -79,12 +93,80 @@ export class TradeService {
   }
 
   async GateIoLoginPage(res: Response) {
+    const qrCodeSelector = '#loginQRCode canvas';
     if (!this.browserService.browser) await this.browserService.initBrowser();
-    if (!this.gateIoPage) await this.initGateIoPage();
-    await this.gateIoPage.setViewport({ width: 1200, height: 700 });
-    await this.gateIoPage.goto(this.LINK_GATEIO_LOGIN_PAGE);
-    await this.gateIoPage.waitForSelector('#loginQRCode canvas');
-    const screenshot = await this.gateIoPage.screenshot({ encoding: 'base64' });
+    if (!this.GateIoPage) await this.initGateIoPage();
+    await this.GateIoPage.goto(this.LINK_GATEIO_LOGIN_PAGE);
+    await this.GateIoPage.waitForSelector(qrCodeSelector);
+    const screenshot = await this.GateIoPage.screenshot({ encoding: 'base64' });
+    // send screenshot for clinet to accept login
+    const pic = Buffer.from(screenshot, 'base64');
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Content-Disposition', 'attachment; filename=login-page.jpg');
+    return res.send(pic);
+  }
+
+  // mexc trade
+  async MexcCheckCryptoExist(crypto_symbol: string) {
+    if (!(await this.MexcUserIsLogin())) return;
+    // check cryto exist with usdt;
+    const trade_symbol = `${crypto_symbol}_USDT`;
+    await this.MexcPage.goto(`${this.LINK_MEXC_TRADE_PAGE}/${trade_symbol}`);
+    const noCrypto = await this.MexcPage.evaluate(() => {
+      const closeBtnPopUpSelector = 'button.ant-modal-close';
+      const noCryptoSelector = '.error_tip__cFQf4';
+      const noCrypto = document.querySelector<HTMLElement | undefined | null>(
+        noCryptoSelector,
+      );
+      const closeBtnPopUp = document.querySelector<
+        HTMLElement | undefined | null
+      >(closeBtnPopUpSelector);
+      closeBtnPopUp?.click();
+      return noCrypto;
+    });
+    if (!noCrypto) await this.MexcBuyCrypto();
+  }
+
+  async MexcUserIsLogin() {
+    const loginBtnSelector = '.header_registerBtn__fsUiv.header_authBtn__Gch60';
+    const loginBtn = await this.MexcPage.$(loginBtnSelector);
+    const url = this.MexcPage.url();
+    if (url !== this.LINK_MEXC_LOGIN_PAGE && loginBtn) return false;
+    else if (url !== this.LINK_MEXC_LOGIN_PAGE && !loginBtn) return true;
+    else return undefined;
+  }
+
+  async MexcBuyCrypto() {
+    const notifHTMLStr = await this.MexcPage.evaluate(() => {
+      const marketOrderTypeSelector =
+        '.actions_textNowarp__3QcjB.actions_mode__nRnKJ';
+      // const availablePrecentageSelector =
+      //   '.mantine-GateSlider-root.mantine-Slider-root.gui-font-face.mantine-1l1492h input';
+      // const buyBtnSelector =
+      //   '.mantine-UnstyledButton-root.mantine-GateButton-root.mantine-Button-root.gui-font-face.mantine-11d65fe';
+      // const notifListSelector = '#noty_toast_layout_container';
+      // change order tab to buy on the moment
+      ([...document.querySelectorAll(marketOrderTypeSelector)] as HTMLElement[])
+        .filter((el: HTMLElement) => el.innerText.toLowerCase() === 'market')[0]
+        ?.click();
+      // // set perecentage for buy amount of crypto
+      // document.querySelector<HTMLInputElement>(
+      //   availablePrecentageSelector,
+      // ).value = '100';
+      // // buy action
+      // (document.querySelector(buyBtnSelector) as HTMLElement).click();
+      // return document.querySelector(notifListSelector).innerHTML;
+    });
+    return notifHTMLStr;
+  }
+
+  async MexcLoginPage(res: Response) {
+    const qrCodeSelector = '.QrcodeLogin_qrcode__IGJHy';
+    if (!this.browserService.browser) await this.browserService.initBrowser();
+    if (!this.MexcPage) await this.initMexcPage();
+    await this.MexcPage.goto(this.LINK_MEXC_LOGIN_PAGE);
+    await this.MexcPage.waitForSelector(qrCodeSelector);
+    const screenshot = await this.MexcPage.screenshot({ encoding: 'base64' });
     // send screenshot for clinet to accept login
     const pic = Buffer.from(screenshot, 'base64');
     res.setHeader('Content-Type', 'image/jpeg');
