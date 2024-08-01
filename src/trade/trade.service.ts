@@ -147,26 +147,45 @@ export class TradeService {
   }
 
   async MexcBuyCrypto() {
-    const notifHTMLStr = await this.MexcPage.evaluate(() => {
+    const availableMoney = await this.MexcPage.evaluate(() => {
       const marketOrderTypeSelector =
         '.actions_textNowarp__3QcjB.actions_mode__nRnKJ';
-      // const availablePrecentageSelector =
-      //   '.mantine-GateSlider-root.mantine-Slider-root.gui-font-face.mantine-1l1492h input';
-      // const buyBtnSelector =
-      //   '.mantine-UnstyledButton-root.mantine-GateButton-root.mantine-Button-root.gui-font-face.mantine-11d65fe';
-      // const notifListSelector = '#noty_toast_layout_container';
-      // change order tab to buy on the moment
+      const availableMoneySelector = '.actions_itemContent__qOMXm';
+      const unitMoneySelector = '.actions_unitsSpace__i8C7j';
+      const amountMoneySelector = '.actions_valueContent__8bSMo';
       ([...document.querySelectorAll(marketOrderTypeSelector)] as HTMLElement[])
-        .filter((el: HTMLElement) => el.innerText.toLowerCase() === 'market')[0]
+        .filter((el) => el.innerText.toLowerCase() === 'market')[0]
         ?.click();
-      // // set perecentage for buy amount of crypto
-      // document.querySelector<HTMLInputElement>(
-      //   availablePrecentageSelector,
-      // ).value = '100';
-      // // buy action
-      // (document.querySelector(buyBtnSelector) as HTMLElement).click();
-      // return document.querySelector(notifListSelector).innerHTML;
+      // get available money
+      const availableMoney = [
+        ...document.querySelectorAll(availableMoneySelector),
+      ]
+        .filter(
+          (el) =>
+            el.querySelector(unitMoneySelector).textContent.toLowerCase() ===
+            'usdt',
+        )[0]
+        .querySelector(amountMoneySelector).textContent;
+      return availableMoney;
     });
+    // set amount money to buy crypto
+    await this.MexcPage.type(
+      'input[data-testid=spot-trade-buyTotal]',
+      availableMoney,
+    );
+    // buy action and get notif
+    const buyBtnSelector = 'button[data-testid=spot-trade-orderBuyBtn]';
+    const notifSelector = '.ant-message';
+    const notifHTMLStr = await this.MexcPage.evaluate(
+      (buyBtnSelector, notifSelector) => {
+        document.querySelector<HTMLElement>(buyBtnSelector).click();
+        const notifHTMLStr =
+          document.querySelector<HTMLElement>(notifSelector).textContent;
+        return notifHTMLStr;
+      },
+      buyBtnSelector,
+      notifSelector,
+    );
     return notifHTMLStr;
   }
 
