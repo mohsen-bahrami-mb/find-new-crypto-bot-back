@@ -38,6 +38,7 @@ export class TradeService {
     await this.MexcPage.setViewport({ width: 1200, height: 700 });
   }
 
+  // logic
   newCryptos(newCryptosList: BinanceNews[]) {
     const whiteList = newCryptosList
       .map((crypto) => {
@@ -51,6 +52,15 @@ export class TradeService {
     // start to disde trade and save on mongo in ohter functions
     // cron job to check the trade in cron job
   }
+
+  async sellCrypto() {
+    // this function check db to recive to target or position
+    // change target? call it
+    // change stop? call it
+    // returns sell bool
+  }
+  async changeTarget() {}
+  async changeStop() {}
 
   // gateio trade
   async GateIoCheckCryptoExist(crypto_symbol: string) {
@@ -95,6 +105,10 @@ export class TradeService {
     });
     return notifHTMLStr;
   }
+
+  async GateIoAllWalletCrypto() {}
+  async GateIoCryptoState() {}
+  async GateIoCloseCryptoPosition() {}
 
   async GateIoLoginPage(res: Response) {
     const qrCodeSelector = '#loginQRCode canvas';
@@ -202,4 +216,8 @@ export class TradeService {
     res.setHeader('Content-Disposition', 'attachment; filename=login-page.jpg');
     return res.send(pic);
   }
+
+  async MexcAllWalletCrypto() {}
+  async MexcCryptoState() {}
+  async MexcCloseCryptoPosition() {}
 }
