@@ -5,6 +5,7 @@ import { BinanceNews } from 'src/types/finder.type';
 import { Response, Request } from 'express';
 import { Model } from 'mongoose';
 import { Trade } from './schema/trade.schema';
+import { InjectModel } from '@nestjs/mongoose';
 
 @Injectable()
 export class TradeService {
@@ -23,7 +24,7 @@ export class TradeService {
 
   constructor(
     private browserService: BrowserService,
-    private readonly TradeModle: Model<Trade>,
+    @InjectModel(Trade.name) private TradeModle: Model<Trade>,
   ) {
     this.tradeModle = TradeModle;
   }
