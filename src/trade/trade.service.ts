@@ -3,6 +3,8 @@ import * as Puppeteer from 'puppeteer';
 import { BrowserService } from 'src/browser/browser.service';
 import { BinanceNews } from 'src/types/finder.type';
 import { Response, Request } from 'express';
+import { Model } from 'mongoose';
+import { Trade } from './schema/trade.schema';
 
 @Injectable()
 export class TradeService {
@@ -16,8 +18,15 @@ export class TradeService {
   isLoginMexcPage = false;
   maximumRequstTime = 20000; // in miliseconds
   logger = new Logger();
+  tradeModle: Model<Trade>;
+  defaultEndPositionsPrice: { tp: number; ls: number } = { tp: null, ls: null };
 
-  constructor(private browserService: BrowserService) {}
+  constructor(
+    private browserService: BrowserService,
+    private readonly TradeModle: Model<Trade>,
+  ) {
+    this.tradeModle = TradeModle;
+  }
 
   async onApplicationBootstrap() {
     if (this.browserService.browser) {
