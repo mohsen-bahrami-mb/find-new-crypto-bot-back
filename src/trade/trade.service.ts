@@ -38,14 +38,14 @@ export class TradeService {
 
   async initGateIoPage() {
     this.GateIoPage?.close();
-    this.GateIoPage = await this.browserService.browser.newPage();
-    await this.GateIoPage.setViewport({ width: 1200, height: 700 });
+    // this.GateIoPage = await this.browserService.browser.newPage();
+    // await this.GateIoPage.setViewport({ width: 1200, height: 700 });
   }
 
   async initMexcPage() {
     this.MexcPage?.close();
-    this.MexcPage = await this.browserService.browser.newPage();
-    await this.MexcPage.setViewport({ width: 1200, height: 700 });
+    // this.MexcPage = await this.browserService.browser.newPage();
+    // await this.MexcPage.setViewport({ width: 1200, height: 700 });
   }
 
   // logic

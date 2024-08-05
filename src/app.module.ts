@@ -6,6 +6,8 @@ import { FinderModule } from './finder/finder.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { TradeModule } from './trade/trade.module';
 import { BrowserModule } from './browser/browser.module';
+import { BullModule } from '@nestjs/bullmq';
+import { queue } from './types/redis.enum';
 
 @Module({
   imports: [
@@ -20,6 +22,14 @@ import { BrowserModule } from './browser/browser.module';
         uri: process.env.MONGO_URI,
       }),
     }),
+    BullModule.forRoot({
+      connection: {
+        host: process.env.REDIS_HOST,
+        port: Number(process.env.REDIS_PORT),
+      },
+    }),
+    BullModule.registerQueue({ name: queue.finder }),
+    BullModule.registerQueue({ name: queue.trade }),
     FinderModule,
     TradeModule,
     BrowserModule,
