@@ -5,6 +5,10 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Finder, FinderSchema } from './schema/finder.schema';
 import { TradeService } from 'src/trade/trade.service';
 import { Trade, TradeSchema } from 'src/trade/schema/trade.schema';
+import { FinderTask } from './task/finder.task';
+import { FinderProcess } from './process/finder.process';
+import { BullModule } from '@nestjs/bull';
+import { queue } from 'src/types/redis.enum';
 
 @Module({
   imports: [
@@ -12,9 +16,9 @@ import { Trade, TradeSchema } from 'src/trade/schema/trade.schema';
       { name: Finder.name, schema: FinderSchema },
       { name: Trade.name, schema: TradeSchema },
     ]),
-    // BrowserModule,
+    BullModule.registerQueue({ name: queue.finder }),
   ],
-  providers: [FinderService, TradeService],
+  providers: [FinderService, TradeService, FinderTask, FinderProcess],
   controllers: [FinderController],
 })
 export class FinderModule {}
