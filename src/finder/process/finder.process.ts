@@ -1,22 +1,24 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Job } from 'bull';
-import { queue } from 'src/types/redis.enum';
+import { queue, queueJob } from 'src/types/redis.enum';
 import { Inject, Logger } from '@nestjs/common';
 import { FinderService } from '../finder.service';
 
 @Processor(queue.finder)
 export class FinderProcess {
   private readonly logger = new Logger(FinderProcess.name);
-
+  timeAvaliable = NaN;
   constructor(@Inject() private finderService: FinderService) {}
 
-  @Process('try_check')
+  @Process(queueJob.checkNews)
   async tryit(job: Job<unknown>) {
     try {
-      console.log(job.id);
-      await this.finderService.checkTargetNews();
+      if (!this.timeAvaliable || this.timeAvaliable < Date.now()) {
+        await this.finderService.checkTargetNews();
+        this.timeAvaliable = Date.now() + 3000;
+      }
     } catch (err) {
-      console.log(err.stack);
+      this.logger.error(err, err.stack);
     }
   }
 }

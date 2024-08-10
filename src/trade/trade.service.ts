@@ -38,14 +38,14 @@ export class TradeService {
 
   async initGateIoPage() {
     this.GateIoPage?.close();
-    // this.GateIoPage = await this.browserService.browser.newPage();
-    // await this.GateIoPage.setViewport({ width: 1200, height: 700 });
+    this.GateIoPage = await this.browserService.browser.newPage();
+    await this.GateIoPage.setViewport({ width: 1200, height: 700 });
   }
 
   async initMexcPage() {
     this.MexcPage?.close();
-    // this.MexcPage = await this.browserService.browser.newPage();
-    // await this.MexcPage.setViewport({ width: 1200, height: 700 });
+    this.MexcPage = await this.browserService.browser.newPage();
+    await this.MexcPage.setViewport({ width: 1200, height: 700 });
   }
 
   // logic
@@ -59,6 +59,13 @@ export class TradeService {
       })
       .filter((crypto) => crypto);
     console.log({ whiteList });
+    // موارد سرویس فایندر رو توی ترای کش هندل کنم کامل و فاینالیش رو هم بررسی کنم
+    // اول باید بره که خرید رو بزنه و اونو ذخیره کنه و در اخر تحت هر شرایطی چک کردن رو صدا بزنه
+    // فانکشن چک کردن باید زمان نهایی که برای مهلت ترید ثبت شده و یا اینکه ترید کامل انجام شده باشه رو چک کنه
+    // و درصورت تموم شدن مهلت یا کامل بودن دوباره همین فانکشن رو کال نمکنه و در غیر این صورت این فانکشن کال میشه
+    // بخاطر اینکه کال استک جاوااسکرپت پر نشه صدا زدن این فانکشن ها باید توی صف باشه و توش دیتا ست بشه
+    // دیتایی که به فانکشن خرید داده میشه همون مواردیه که از فایندر پیدا شده. و دیتای چکر ایدی دیتابیس ترید میشه
+
     // start to disde trade and save on mongo in ohter functions
     // cron job to check the trade in cron job
   }

@@ -3,4 +3,6 @@ export enum queue {
   trade = 'trade',
 }
 
-export enum job {}
+export enum queueJob {
+  checkNews = 'checkNews',
+}

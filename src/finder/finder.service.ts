@@ -10,7 +10,7 @@ import { BrowserService } from 'src/browser/browser.service';
 @Injectable()
 export class FinderService {
   LINK_BINANCE_NEW_CRYPTO_LIST = process.env.LINK_BINANCE_NEW_CRYPTO_LIST;
-  logger = new Logger();
+  logger = new Logger(FinderService.name);
 
   finderModel: Model<Finder>;
 
@@ -123,8 +123,8 @@ export class FinderService {
       .filter((item) => item);
     const newCryptos = await this.isNewOne(newCryptoWillList);
     if (newCryptos.length) {
-      this.tradeService.newCryptos(newCryptos);
       await this.finderModel.insertMany(newCryptos);
+      this.tradeService.newCryptos(newCryptos);
     }
   }
 }
