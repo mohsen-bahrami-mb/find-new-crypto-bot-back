@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import * as Puppeteer from 'puppeteer';
 import { BrowserService } from 'src/browser/browser.service';
 import { BinanceNews } from 'src/types/finder.type';
@@ -6,6 +6,7 @@ import { Response, Request } from 'express';
 import { Model } from 'mongoose';
 import { Trade } from './schema/trade.schema';
 import { InjectModel } from '@nestjs/mongoose';
+import { SnapshotDtoParams } from './dto/snapshot.dto';
 
 @Injectable()
 export class TradeService {
@@ -46,6 +47,30 @@ export class TradeService {
     this.MexcPage?.close();
     this.MexcPage = await this.browserService.browser.newPage();
     await this.MexcPage.setViewport({ width: 1200, height: 700 });
+  }
+
+  async sendSnapshot(res: Response, page: Puppeteer.Page) {
+    const screenshot = await page.screenshot({ encoding: 'base64' });
+    const pic = Buffer.from(screenshot, 'base64');
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Content-Disposition', 'attachment; filename=login-page.jpg');
+    return res.send(pic);
+  }
+
+  async brokerSnapshot(res: Response, { broker }: SnapshotDtoParams) {
+    if (broker === 'gate') {
+      if (this.isLoginGateIoPage)
+        return this.sendSnapshot(res, this.GateIoPage);
+      return this.GateIoLoginPage(res);
+    }
+    if (broker === 'mexc') {
+      if (this.isLoginMexcPage) return this.sendSnapshot(res, this.MexcPage);
+      return this.MexcLoginPage(res);
+    }
+    throw new BadRequestException('Invalid Param', {
+      cause: new Error(),
+      description: 'set param [mexc | gate]',
+    });
   }
 
   // logic
@@ -133,12 +158,8 @@ export class TradeService {
     if (!this.GateIoPage) await this.initGateIoPage();
     await this.GateIoPage.goto(this.LINK_GATEIO_LOGIN_PAGE);
     await this.GateIoPage.waitForSelector(qrCodeSelector);
-    const screenshot = await this.GateIoPage.screenshot({ encoding: 'base64' });
     // send screenshot for clinet to accept login
-    const pic = Buffer.from(screenshot, 'base64');
-    res.setHeader('Content-Type', 'image/jpeg');
-    res.setHeader('Content-Disposition', 'attachment; filename=login-page.jpg');
-    return res.send(pic);
+    return this.sendSnapshot(res, this.GateIoPage);
   }
 
   // mexc trade
@@ -226,12 +247,8 @@ export class TradeService {
     if (!this.MexcPage) await this.initMexcPage();
     await this.MexcPage.goto(this.LINK_MEXC_LOGIN_PAGE);
     await this.MexcPage.waitForSelector(qrCodeSelector);
-    const screenshot = await this.MexcPage.screenshot({ encoding: 'base64' });
     // send screenshot for clinet to accept login
-    const pic = Buffer.from(screenshot, 'base64');
-    res.setHeader('Content-Type', 'image/jpeg');
-    res.setHeader('Content-Disposition', 'attachment; filename=login-page.jpg');
-    return res.send(pic);
+    return this.sendSnapshot(res, this.MexcPage);
   }
 
   async MexcAllWalletCrypto() {}
