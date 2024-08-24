@@ -6,22 +6,58 @@ import { Finder } from './schema/finder.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { TradeService } from 'src/trade/trade.service';
 import { BrowserService } from 'src/browser/browser.service';
+import { ConfigDto } from './dto/config.dto';
+import { Config } from './schema/config.schema';
 
 @Injectable()
 export class FinderService {
-  LINK_BINANCE_NEW_CRYPTO_LIST = process.env.LINK_BINANCE_NEW_CRYPTO_LIST;
   logger = new Logger(FinderService.name);
+  LINK_BINANCE_NEW_CRYPTO_LIST = process.env.LINK_BINANCE_NEW_CRYPTO_LIST;
+  config: ConfigDto = {
+    timezone: undefined,
+    finderStartAt: undefined,
+    finderEndAt: undefined,
+  };
 
   finderModel: Model<Finder>;
+  configModel: Model<Config>;
 
   private page: Puppeteer.Page;
 
   constructor(
     @InjectModel(Finder.name) private FinderModel: Model<Finder>,
+    @InjectModel(Config.name) private ConfigModel: Model<Config>,
     private readonly tradeService: TradeService,
     private browserService: BrowserService,
   ) {
     this.finderModel = FinderModel;
+    this.configModel = ConfigModel;
+  }
+
+  async getConfig() {
+    if (
+      this.config.timezone ||
+      this.config.finderStartAt ||
+      this.config.finderEndAt
+    ) {
+      return this.config;
+    }
+    const dbConfig = await this.configModel.findOne();
+    if (dbConfig) {
+      this.config = {
+        finderEndAt: dbConfig.finderEndAt,
+        finderStartAt: dbConfig.finderStartAt,
+        timezone: dbConfig.timezone,
+      };
+      return this.config;
+    }
+    return this.config;
+  }
+
+  async putConfig(body: ConfigDto) {
+    this.config = body;
+    await this.configModel.findOneAndUpdate(body);
+    return this.config;
   }
 
   async onApplicationBootstrap() {
