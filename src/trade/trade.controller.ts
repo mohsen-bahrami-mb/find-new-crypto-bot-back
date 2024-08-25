@@ -1,8 +1,19 @@
-import { Body, Controller, Get, Param, Put, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Put,
+  Query,
+  Req,
+  Res,
+} from '@nestjs/common';
 import { TradeService } from './trade.service';
 import { Request, Response } from 'express';
 import { Types } from 'mongoose';
 import { SnapshotDtoParams } from './dto/snapshot.dto';
+import { EndPositionsPriceDto, ManagerDto } from './dto/manager.dto';
+import { StatementParamDto, StatementQueryDto } from './dto/statement.dto';
 
 @Controller('trade')
 export class TradeController {
@@ -24,23 +35,26 @@ export class TradeController {
     };
   }
   @Get('manager')
-  getManager(@Req() req: Request) {
-    // send configs if default is exist. costants exist in app to make faster bot. if app has not. find it in db
+  getManager() {
+    return this.tradeService.getManager();
   }
   @Put('manager')
-  PutManager(@Req() req: Request, @Body() body: any) {
-    // update configs in app const and db
+  PutManager(@Body() body: ManagerDto) {
+    return this.tradeService.putManager(body);
   }
-  @Get('manager/:id')
-  getIdManager(@Req() req: Request, @Param('id') id: Types.ObjectId) {
-    // send configs if default is exist. costants exist in app to make faster bot. if app has not. find it in db
+  @Get('statement')
+  getStatement(@Query() query: StatementQueryDto) {
+    return this.tradeService.getStatement(query);
   }
-  @Put('manager/:id')
-  PutIdManager(
-    @Req() req: Request,
-    @Param('id') id: Types.ObjectId,
-    @Body() body: any,
+  @Get(':id/statement')
+  getIdStatement(@Param() param: StatementParamDto) {
+    return this.tradeService.getIdStatement(param);
+  }
+  @Put(':id/statement')
+  PutIdStatement(
+    @Param() param: StatementParamDto,
+    @Body() body: EndPositionsPriceDto[],
   ) {
-    // update configs in app const and db
+    return this.tradeService.putIdStatement(param, body);
   }
 }

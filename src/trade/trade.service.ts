@@ -1,15 +1,25 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import * as Puppeteer from 'puppeteer';
 import { BrowserService } from 'src/browser/browser.service';
 import { BinanceNews } from 'src/types/finder.type';
 import { Response, Request } from 'express';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Trade } from './schema/trade.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { SnapshotDtoParams } from './dto/snapshot.dto';
+import { DefaultTrade } from './schema/defaultTrade.schema';
+import { EndPositionsPriceDto, ManagerDto } from './dto/manager.dto';
+import { StatementParamDto, StatementQueryDto } from './dto/statement.dto';
+import { TradeState } from 'src/enums/trade.enum';
 
 @Injectable()
 export class TradeService {
+  logger = new Logger();
   LINK_GATEIO_LOGIN_PAGE = 'https://www.gate.io/login';
   LINK_GATEIO_TRADE_PAGE = 'https://www.gate.io/trade';
   LINK_MEXC_LOGIN_PAGE = 'https://www.mexc.com/login';
@@ -18,16 +28,21 @@ export class TradeService {
   MexcPage: Puppeteer.Page;
   isLoginGateIoPage = false;
   isLoginMexcPage = false;
-  maximumRequstTime = 20000; // in miliseconds
-  logger = new Logger();
+  /** in miliseconds */ maximumRequstTime = 20000;
+  /** 0% - 100% */ percentOfAmount = 100;
+  defaultEndPositionsPrice: EndPositionsPriceDto[] = [];
+
   tradeModle: Model<Trade>;
-  defaultEndPositionsPrice: { tp: number; ls: number } = { tp: null, ls: null };
+  defaultTradeModle: Model<DefaultTrade>;
 
   constructor(
     private browserService: BrowserService,
     @InjectModel(Trade.name) private TradeModle: Model<Trade>,
+    @InjectModel(DefaultTrade.name)
+    private DefaultTradeModle: Model<DefaultTrade>,
   ) {
     this.tradeModle = TradeModle;
+    this.defaultTradeModle = DefaultTradeModle;
   }
 
   async onApplicationBootstrap() {
@@ -35,6 +50,78 @@ export class TradeService {
       await this.initGateIoPage();
       await this.initMexcPage();
     }
+  }
+
+  async getManager() {
+    if (
+      this.defaultEndPositionsPrice.length &&
+      this.maximumRequstTime &&
+      this.percentOfAmount
+    ) {
+      return returns.bind(this)();
+    }
+    const dbDefault = await this.defaultTradeModle.findOne();
+    if (dbDefault) {
+      this.defaultEndPositionsPrice = dbDefault.endPositionsPrice;
+      this.maximumRequstTime = dbDefault.maximumRequstTime;
+      this.percentOfAmount = dbDefault.percentOfAmount;
+      return returns.bind(this)();
+    }
+    return returns.bind(this)();
+    function returns() {
+      return {
+        endPositionsPrice: this.defaultEndPositionsPrice,
+        maximumRequstTime: this.maximumRequstTime,
+        percentOfAmount: this.percentOfAmount,
+      };
+    }
+  }
+
+  async putManager(body: ManagerDto) {
+    this.defaultEndPositionsPrice = body.endPositionsPrice;
+    this.maximumRequstTime = body.maximumRequstTime;
+    this.percentOfAmount = body.percentOfAmount;
+    await this.defaultTradeModle.findOneAndUpdate({}, body);
+    return {
+      endPositionsPrice: this.defaultEndPositionsPrice,
+      maximumRequstTime: this.maximumRequstTime,
+      percentOfAmount: this.percentOfAmount,
+    };
+  }
+
+  async getStatement({ limit = 0, skip = 0 }: StatementQueryDto) {
+    return await this.tradeModle.find().limit(limit).skip(skip);
+  }
+
+  async getIdStatement({ id }: StatementParamDto) {
+    const trade = await this.tradeModle.findById(id);
+    if (!trade)
+      return new NotFoundException('Not Found Trade', {
+        description: `Not Found Trade id: ${id}`,
+      });
+    return trade;
+  }
+
+  async putIdStatement(
+    { id }: StatementParamDto,
+    body: EndPositionsPriceDto[],
+  ) {
+    const trade = await this.tradeModle.findById(id);
+    if (
+      !trade ||
+      [TradeState.endTrade, TradeState.startFailed].includes(trade.state)
+    )
+      return new NotFoundException('Not Found Trade', {
+        description: `Not Found Trade id: ${id}`,
+      });
+    const newEndPos = [...trade.endPositionsPrice];
+    body.forEach((endPos, index) => {
+      if (!newEndPos?.[index]?.endPrice) newEndPos[index] = endPos;
+    });
+    return await trade.updateOne(
+      { endPositionsPrice: newEndPos },
+      { new: true },
+    );
   }
 
   async initGateIoPage() {

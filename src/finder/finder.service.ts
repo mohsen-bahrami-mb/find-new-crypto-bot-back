@@ -34,6 +34,10 @@ export class FinderService {
     this.configModel = ConfigModel;
   }
 
+  async onApplicationBootstrap() {
+    if (this.browserService.browser) await this.initPage();
+  }
+
   async getConfig() {
     if (
       this.config.timezone ||
@@ -56,12 +60,8 @@ export class FinderService {
 
   async putConfig(body: ConfigDto) {
     this.config = body;
-    await this.configModel.findOneAndUpdate(body);
+    await this.configModel.findOneAndUpdate({}, body);
     return this.config;
-  }
-
-  async onApplicationBootstrap() {
-    if (this.browserService.browser) await this.initPage();
   }
 
   public async initPage() {

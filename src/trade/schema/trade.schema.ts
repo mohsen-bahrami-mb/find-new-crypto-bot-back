@@ -1,31 +1,45 @@
+import type { EndPositionsPrice } from 'src/types/trade.type';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+import { TradeState } from 'src/enums/trade.enum';
 
 export type TradeDocument = HydratedDocument<Trade>;
 
 @Schema({ timestamps: true })
 export class Trade {
-  @Prop({ type: String, required: true, index: true })
-  crypto_name: string;
+  @Prop({ type: String, enum: Object.values(TradeState), required: true })
+  state: TradeState;
 
   @Prop({ type: String, required: true, index: true })
-  crypto_symbol: string;
+  cryptoName: string;
 
   @Prop({ type: String, required: true, index: true })
-  crypto_pair_symbol: string;
+  cryptoSymbol: string;
+
+  @Prop({ type: String, required: true, index: true })
+  cryptoPairSymbol: string;
 
   @Prop({ type: [Number], required: true })
-  start_positions_price: number[];
+  startPositionsPrice: number[];
 
-  /** {`1`: {...}, `2`: {...}, ...} */
-  @Prop({ type: Map, required: true })
-  end_positions_price: Map<number, { tp: number; sl: number }>;
+  @Prop({
+    type: [
+      {
+        tp: Number,
+        sl: Number,
+        percentOfAmount: Number,
+        endPrice: Number,
+      },
+    ],
+    required: true,
+  })
+  endPositionsPrice: EndPositionsPrice[];
 
   @Prop({ type: Number, required: true })
-  start_position_amount: number;
+  startPositionAmount: number;
 
   @Prop({ type: Number, required: true })
-  end_position_amount: number;
+  endPositionAmount: number;
 }
 
 export const TradeSchema = SchemaFactory.createForClass(Trade);
