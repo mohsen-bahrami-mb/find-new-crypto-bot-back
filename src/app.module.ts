@@ -6,7 +6,6 @@ import { FinderModule } from './finder/finder.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { TradeModule } from './trade/trade.module';
 import { BrowserModule } from './browser/browser.module';
-import { queue } from './types/redis.enum';
 import { ScheduleModule } from '@nestjs/schedule';
 import { BullModule } from '@nestjs/bull';
 

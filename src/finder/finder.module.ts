@@ -8,7 +8,7 @@ import { Trade, TradeSchema } from 'src/trade/schema/trade.schema';
 import { FinderTask } from './task/finder.task';
 import { FinderProcess } from './process/finder.process';
 import { BullModule } from '@nestjs/bull';
-import { queue } from 'src/types/redis.enum';
+import { queue } from 'src/enums/redis.enum';
 
 @Module({
   imports: [

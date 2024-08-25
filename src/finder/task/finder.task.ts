@@ -1,9 +1,8 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { FinderService } from '../finder.service';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
-import { queue, queueJob } from 'src/types/redis.enum';
+import { queue, queueJob } from 'src/enums/redis.enum';
 import { random } from 'src/utils/random';
 
 @Injectable()

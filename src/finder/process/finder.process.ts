@@ -1,6 +1,6 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Job } from 'bull';
-import { queue, queueJob } from 'src/types/redis.enum';
+import { queue, queueJob } from 'src/enums/redis.enum';
 import { Inject, Logger } from '@nestjs/common';
 import { FinderService } from '../finder.service';
 
