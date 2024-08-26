@@ -8,6 +8,7 @@ import { TradeModule } from './trade/trade.module';
 import { BrowserModule } from './browser/browser.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { BullModule } from '@nestjs/bull';
+import { MonitorModule } from './monitor/monitor.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { BullModule } from '@nestjs/bull';
     FinderModule,
     TradeModule,
     BrowserModule,
+    MonitorModule,
   ],
   controllers: [AppController],
   providers: [AppService],
