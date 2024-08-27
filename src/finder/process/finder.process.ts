@@ -14,7 +14,7 @@ export class FinderProcess {
   async tryit(job: Job<unknown>) {
     try {
       if (!this.timeAvaliable || this.timeAvaliable < Date.now()) {
-        await this.finderService.checkTargetNews();
+        // await this.finderService.checkTargetNews();
         this.timeAvaliable = Date.now() + 3000;
       }
     } catch (err) {

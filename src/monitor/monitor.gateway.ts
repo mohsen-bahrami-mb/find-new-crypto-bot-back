@@ -11,7 +11,8 @@ import {
   EventListener,
   SocketNameSpace,
 } from 'src/enums/event.enum';
-import { MonitorLogJSON } from 'src/types/monitor.type';
+import { MonitorLog } from 'src/types/monitor.type';
+import { MonitorService } from './monitor.service';
 
 @Injectable()
 @WebSocketGateway({ namespace: SocketNameSpace.monitor })
@@ -19,15 +20,21 @@ export class MonitorGateway {
   @WebSocketServer()
   server: Server;
 
-  @SubscribeMessage(EventListener.getTailLogs)
-  private getTailLogs(@MessageBody() data: string) {}
-  @SubscribeMessage(EventListener.getHeadLogs)
-  private getHeadLogs(@MessageBody() data: string) {}
+  constructor(private monitorService: MonitorService) {}
 
-  public addTailLogs(data: MonitorLogJSON) {
+  @SubscribeMessage(EventListener.getTailLogs)
+  private async getTailLogs(@MessageBody() count: string) {
+    return await this.monitorService.getTailLogs(count);
+  }
+  @SubscribeMessage(EventListener.getHeadLogs)
+  private async getHeadLogs(@MessageBody() count: string) {
+    return await this.monitorService.getHeadLogs(count);
+  }
+
+  public addTailLogs(data: MonitorLog[]) {
     this.server.emit(EventEmitter.addTailLogs, data);
   }
-  public addHeadLogs(data: MonitorLogJSON) {
+  public addHeadLogs(data: MonitorLog[]) {
     this.server.emit(EventEmitter.addHeadLogs, data);
   }
 }

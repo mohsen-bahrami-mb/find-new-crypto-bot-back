@@ -1,5 +1,7 @@
-export type MonitorLogJSON = {
+export type MonitorLog = {
   count: number;
-  type: 'info' | 'success' | 'error' | 'warn';
+  type: MonitorLogType;
   log: string;
-}[];
+};
+
+export type MonitorLogType = 'info' | 'success' | 'error' | 'warn';
