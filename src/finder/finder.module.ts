@@ -11,6 +11,7 @@ import { BullModule } from '@nestjs/bull';
 import { queue } from 'src/enums/redis.enum';
 import { Config, ConfigSchema } from './schema/config.schema';
 import { DefaultTrade, DefaultTradeSchema } from 'src/trade/schema/defaultTrade.schema';
+import { MonitorGateway } from 'src/monitor/monitor.gateway';
 
 @Module({
   imports: [
@@ -22,7 +23,7 @@ import { DefaultTrade, DefaultTradeSchema } from 'src/trade/schema/defaultTrade.
     ]),
     BullModule.registerQueue({ name: queue.finder }),
   ],
-  providers: [FinderService, TradeService, FinderTask, FinderProcess],
+  providers: [FinderService, TradeService, FinderTask, FinderProcess, MonitorGateway],
   controllers: [FinderController],
 })
 export class FinderModule {}

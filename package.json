@@ -39,7 +39,8 @@
     "puppeteer": "^22.13.0",
     "puppeteer-core": "^22.13.0",
     "reflect-metadata": "^0.2.0",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "socket.io": "^4.7.5"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",
