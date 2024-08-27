@@ -1,4 +1,3 @@
-import type { EndPositionsPrice } from 'src/types/trade.type';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { EndPositionsPriceDto } from '../dto/manager.dto';
