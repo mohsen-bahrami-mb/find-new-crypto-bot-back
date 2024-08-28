@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import {
   MessageBody,
   SubscribeMessage,
@@ -20,21 +20,25 @@ export class MonitorGateway {
   @WebSocketServer()
   server: Server;
 
-  constructor(private monitorService: MonitorService) {}
+  constructor(
+    @Inject(forwardRef(() => MonitorService)) private monitorService,
+  ) {}
 
   @SubscribeMessage(EventListener.getTailLogs)
   private async getTailLogs(@MessageBody() count: string) {
-    return await this.monitorService.getTailLogs(count);
+    const result = await this.monitorService.getTailLogs(count);
+    this.addTailLogs(result);
   }
   @SubscribeMessage(EventListener.getHeadLogs)
   private async getHeadLogs(@MessageBody() count: string) {
-    return await this.monitorService.getHeadLogs(count);
+    const result = await this.monitorService.getHeadLogs(count);
+    this.addHeadLogs(result);
   }
 
-  public addTailLogs(data: MonitorLog[]) {
+  public async addTailLogs(data: MonitorLog[]) {
     this.server.emit(EventEmitter.addTailLogs, data);
   }
-  public addHeadLogs(data: MonitorLog[]) {
+  public async addHeadLogs(data: MonitorLog[]) {
     this.server.emit(EventEmitter.addHeadLogs, data);
   }
 }

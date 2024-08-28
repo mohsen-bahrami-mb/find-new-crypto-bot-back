@@ -1,12 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Monitor } from './schema/monitor.schema';
 import { Model } from 'mongoose';
+import { Monitor } from './schema/monitor.schema';
+import { MonitorLogDto } from './dto/monitor.dto';
+import { MonitorGateway } from './monitor.gateway';
+
 @Injectable()
 export class MonitorService {
   monitorModel: Model<Monitor>;
   monitorLogCountSize = 6;
-  constructor(@InjectModel(Monitor.name) private MonitorModel: Model<Monitor>) {
+
+  constructor(
+    @InjectModel(Monitor.name) private MonitorModel: Model<Monitor>,
+    @Inject(forwardRef(() => MonitorGateway))
+    private monitorGateway: MonitorGateway,
+  ) {
     this.monitorModel = MonitorModel;
   }
 
@@ -27,5 +35,11 @@ export class MonitorService {
       .sort({ count: 1 })
       .limit(this.monitorLogCountSize);
     return result;
+  }
+
+  async addNewMonitorLog(data: MonitorLogDto[]) {
+    const insertData = await this.monitorModel.insertMany(data);
+    const result = insertData.map((d) => d.toObject());
+    this.monitorGateway.addTailLogs(result);
   }
 }
