@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Put,
   Query,
   Req,
@@ -50,11 +51,11 @@ export class TradeController {
   getIdStatement(@Param() param: StatementParamDto) {
     return this.tradeService.getIdStatement(param);
   }
-  @Put(':id/statement')
-  PutIdStatement(
+  @Patch(':id/statement')
+  PatchIdStatement(
     @Param() param: StatementParamDto,
     @Body() body: EndPositionsPriceDto[],
   ) {
-    return this.tradeService.putIdStatement(param, body);
+    return this.tradeService.patchIdStatement(param, body);
   }
 }

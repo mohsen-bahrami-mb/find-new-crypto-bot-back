@@ -6,16 +6,16 @@ import {
 } from '@nestjs/common';
 import * as Puppeteer from 'puppeteer';
 import { BrowserService } from 'src/browser/browser.service';
-import { BinanceNews } from 'src/types/finder.type';
 import { Response, Request } from 'express';
 import { Model, Types } from 'mongoose';
-import { Trade } from './schema/trade.schema';
+import { Trade, TradeDocument } from './schema/trade.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { SnapshotDtoParams } from './dto/snapshot.dto';
 import { DefaultTrade } from './schema/defaultTrade.schema';
 import { EndPositionsPriceDto, ManagerDto } from './dto/manager.dto';
 import { StatementParamDto, StatementQueryDto } from './dto/statement.dto';
-import { TradeState } from 'src/enums/trade.enum';
+import { TradeBroker, TradeState } from 'src/enums/trade.enum';
+import { FinderDocument } from 'src/finder/schema/finder.schema';
 
 @Injectable()
 export class TradeService {
@@ -24,12 +24,13 @@ export class TradeService {
   LINK_GATEIO_TRADE_PAGE = 'https://www.gate.io/trade';
   LINK_MEXC_LOGIN_PAGE = 'https://www.mexc.com/login';
   LINK_MEXC_TRADE_PAGE = 'https://www.mexc.com/exchange';
+  BaseCryptoSymbol = 'USDT';
   GateIoPage: Puppeteer.Page;
   MexcPage: Puppeteer.Page;
   isLoginGateIoPage = false;
   isLoginMexcPage = false;
   /** in miliseconds */ maximumRequstTime = 20000;
-  /** 0% - 100% */ percentOfAmount = 100;
+  /** (0 - 1) * 100% */ percentOfAmount = 100;
   defaultEndPositionsPrice: EndPositionsPriceDto[] = [];
 
   tradeModle: Model<Trade>;
@@ -102,7 +103,7 @@ export class TradeService {
     return trade;
   }
 
-  async putIdStatement(
+  async patchIdStatement(
     { id }: StatementParamDto,
     body: EndPositionsPriceDto[],
   ) {
@@ -161,25 +162,23 @@ export class TradeService {
   }
 
   // logic
-  newCryptos(newCryptosList: BinanceNews[]) {
+  async newCryptos(newCryptosList: FinderDocument[]) {
     const whiteList = newCryptosList
       .map((crypto) => {
-        const startTime = crypto.request_start.getTime();
-        const endTime = crypto.request_end.getTime();
+        const startTime = crypto.requestStart.getTime();
+        const endTime = crypto.requestEnd.getTime();
         if (startTime - endTime < this.maximumRequstTime) return crypto;
         else return undefined;
       })
       .filter((crypto) => crypto);
-    console.log({ whiteList });
-    // موارد سرویس فایندر رو توی ترای کش هندل کنم کامل و فاینالیش رو هم بررسی کنم
-    // اول باید بره که خرید رو بزنه و اونو ذخیره کنه و در اخر تحت هر شرایطی چک کردن رو صدا بزنه
-    // فانکشن چک کردن باید زمان نهایی که برای مهلت ترید ثبت شده و یا اینکه ترید کامل انجام شده باشه رو چک کنه
-    // و درصورت تموم شدن مهلت یا کامل بودن دوباره همین فانکشن رو کال نمکنه و در غیر این صورت این فانکشن کال میشه
-    // بخاطر اینکه کال استک جاوااسکرپت پر نشه صدا زدن این فانکشن ها باید توی صف باشه و توش دیتا ست بشه
-    // دیتایی که به فانکشن خرید داده میشه همون مواردیه که از فایندر پیدا شده. و دیتای چکر ایدی دیتابیس ترید میشه
-
-    // start to disde trade and save on mongo in ohter functions
-    // cron job to check the trade in cron job
+    // just select first one for trade. based on the employer document
+    const buy = await this.buyIsAppropriate(whiteList[0]);
+    while (true) {
+      // بخاطر اینکه کال استک جاوااسکرپت پر نشه صدا زدن این فانکشن ها باید توی صف باشه و توش دیتا ست بشه
+      // دیتایی که به فانکشن خرید داده میشه همون مواردیه که از فایندر پیدا شده. و دیتای چکر ایدی دیتابیس ترید میشه
+      const checker = await this.checkSaveTrade(whiteList[0], buy.brocker);
+      if (!checker || checker.state === TradeState.startFailed) break;
+    }
   }
 
   async sellCrypto() {
@@ -191,18 +190,95 @@ export class TradeService {
   async changeTarget() {}
   async changeStop() {}
 
+  private timeAppropriateFromNow(requestEnd: Date) {
+    return requestEnd.getTime() - Date.now() < this.maximumRequstTime;
+  }
+
+  private async buyIsAppropriate({ cryptoSymbol, requestEnd }: FinderDocument) {
+    const existOnGateIoBuy = await this.GateIoCheckCryptoExist(cryptoSymbol);
+    if (existOnGateIoBuy && this.timeAppropriateFromNow(requestEnd))
+      return { notif: await this.GateIoBuyCrypto(), brocker: TradeBroker.gate };
+
+    const existOnMexcBuy = await this.MexcCheckCryptoExist(cryptoSymbol);
+    if (existOnMexcBuy && this.timeAppropriateFromNow(requestEnd))
+      return { notif: await this.MexcBuyCrypto(), brocker: TradeBroker.mexc };
+  }
+
+  private async checkSaveTrade(
+    crypto: FinderDocument,
+    broker: keyof typeof TradeBroker,
+  ): Promise<TradeDocument | void> {
+    const cryptoPairSymbol = `${crypto.cryptoSymbol}_${this.BaseCryptoSymbol}`;
+    let succedFullTradeStart: boolean;
+    let newStartPositionPrice: number;
+    let newStartPositionAmount: number;
+    if (broker === TradeBroker.gate) {
+      // call check in broker
+      // succedFullTradeStart = checker
+      // newStartPositionPrice = checker
+    } else if (broker === TradeBroker.mexc) {
+      // call check in broker
+      // succedFullTradeStart = checker
+      // newStartPositionPrice = checker
+    }
+    if (succedFullTradeStart) return;
+
+    const existTrade = await this.tradeModle.findOne({
+      cryptoPairSymbol: cryptoPairSymbol,
+    });
+
+    if (existTrade && this.timeAppropriateFromNow(crypto.requestEnd))
+      return await existTrade.updateOne(
+        {
+          startPositionsPrice: [
+            ...existTrade.startPositionsPrice,
+            newStartPositionPrice,
+          ],
+          startPositionAmount:
+            existTrade.startPositionAmount + newStartPositionAmount,
+        },
+        { new: true },
+      );
+    else if (!existTrade && this.timeAppropriateFromNow(crypto.requestEnd)) {
+      const trade = await this.tradeModle.create({
+        broker,
+        cryptoPairSymbol,
+        state: TradeState.onTrade,
+        cryptoName: crypto.cryptoName,
+        cryptoSymbol: crypto.cryptoSymbol,
+        startPositionsPrice: [newStartPositionPrice],
+        startPositionAmount: newStartPositionAmount,
+        endPositionsPrice: this.defaultEndPositionsPrice.map((def) => ({
+          tp: newStartPositionAmount[0] * def.tp,
+          sl: newStartPositionAmount[0] * def.sl * -1,
+          percentOfAmount: def.percentOfAmount,
+        })),
+      });
+      await crypto.updateOne({ trade: trade._id });
+      return trade;
+    } else if (!existTrade && !this.timeAppropriateFromNow(crypto.requestEnd))
+      return await this.tradeModle.create({
+        broker,
+        cryptoPairSymbol,
+        state: TradeState.startFailed,
+        cryptoName: crypto.cryptoName,
+        cryptoSymbol: crypto.cryptoSymbol,
+      });
+  }
+
   // gateio trade
-  async GateIoCheckCryptoExist(crypto_symbol: string) {
+  async GateIoCheckCryptoExist(cryptoSymbol: string) {
     if (!(await this.GateIoUserIsLogin())) return;
     // check cryto exist with usdt
-    const trade_symbol = `${crypto_symbol}_USDT`;
+    const trade_symbol = `${cryptoSymbol}_${this.BaseCryptoSymbol}`;
     const rgxPattern = /(.+\/)(.+)$/g;
     await this.GateIoPage.goto(
       `${this.LINK_GATEIO_TRADE_PAGE}/${trade_symbol}`,
     );
     const url = this.GateIoPage.url();
     const matchPath = [...url.matchAll(rgxPattern)][0][2];
-    if (trade_symbol === matchPath) await this.GateIoBuyCrypto();
+    if (trade_symbol === matchPath) return true;
+    return false;
   }
 
   async GateIoUserIsLogin() {
@@ -250,10 +326,10 @@ export class TradeService {
   }
 
   // mexc trade
-  async MexcCheckCryptoExist(crypto_symbol: string) {
+  async MexcCheckCryptoExist(cryptoSymbol: string) {
     if (!(await this.MexcUserIsLogin())) return;
     // check cryto exist with usdt;
-    const trade_symbol = `${crypto_symbol}_USDT`;
+    const trade_symbol = `${cryptoSymbol}_${this.BaseCryptoSymbol}`;
     await this.MexcPage.goto(`${this.LINK_MEXC_TRADE_PAGE}/${trade_symbol}`);
     const noCrypto = await this.MexcPage.evaluate(() => {
       const closeBtnPopUpSelector = 'button.ant-modal-close';
@@ -267,7 +343,8 @@ export class TradeService {
       closeBtnPopUp?.click();
       return noCrypto;
     });
-    if (!noCrypto) await this.MexcBuyCrypto();
+    if (!noCrypto) return true;
+    return false;
   }
 
   async MexcUserIsLogin() {
