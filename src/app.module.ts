@@ -9,6 +9,8 @@ import { BrowserModule } from './browser/browser.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { BullModule } from '@nestjs/bull';
 import { MonitorModule } from './monitor/monitor.module';
+import { TelegramBotModule } from './telegram-bot/telegram-bot.module';
+import { AppConfigModule } from './app-config/app-config.module';
 
 @Module({
   imports: [
@@ -34,6 +36,8 @@ import { MonitorModule } from './monitor/monitor.module';
     TradeModule,
     BrowserModule,
     MonitorModule,
+    TelegramBotModule,
+    AppConfigModule,
   ],
   controllers: [AppController],
   providers: [AppService],
