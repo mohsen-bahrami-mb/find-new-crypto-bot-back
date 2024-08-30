@@ -7,28 +7,28 @@ export type FinderDocument = HydratedDocument<Finder>;
 @Schema({ timestamps: true })
 export class Finder {
   @Prop({ type: String, required: true })
-  news_url: string;
+  newsUrl: string;
 
   @Prop({ type: String, required: true })
-  news_title: string;
+  newsTitle: string;
 
   @Prop({ type: Date, required: true })
-  news_date: Date;
+  newsDate: Date;
 
   @Prop({ type: String, required: true, index: true })
-  crypto_name: string;
+  cryptoName: string;
 
   @Prop({ type: String, required: true, index: true })
-  crypto_symbol: string;
+  cryptoSymbol: string;
 
   @Prop({ type: Types.ObjectId, ref: Trade.name })
   trade?: Types.ObjectId;
 
   @Prop({ type: Date, required: true })
-  request_start: Date;
+  requestStart: Date;
 
   @Prop({ type: Date, required: true })
-  request_end: Date;
+  requestEnd: Date;
 }
 
 export const FinderSchema = SchemaFactory.createForClass(Finder);
