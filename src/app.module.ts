@@ -11,6 +11,7 @@ import { BullModule } from '@nestjs/bull';
 import { MonitorModule } from './monitor/monitor.module';
 import { TelegramBotModule } from './telegram-bot/telegram-bot.module';
 import { AppConfigModule } from './app-config/app-config.module';
+import { FileGeneratorModule } from './file-generator/file-generator.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { AppConfigModule } from './app-config/app-config.module';
     MonitorModule,
     TelegramBotModule,
     AppConfigModule,
+    FileGeneratorModule,
   ],
   controllers: [AppController],
   providers: [AppService],
