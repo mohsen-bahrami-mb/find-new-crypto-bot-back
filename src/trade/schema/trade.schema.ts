@@ -43,6 +43,12 @@ export class Trade {
 
   @Prop({ type: Number, default: 0 })
   endPositionAmount: number;
+
+  @Prop({ type: Date })
+  createdAt: Date;
+
+  @Prop({ type: Date })
+  updatedAt: Date;
 }
 
 export const TradeSchema = SchemaFactory.createForClass(Trade);

@@ -29,6 +29,12 @@ export class Finder {
 
   @Prop({ type: Date, required: true })
   requestEnd: Date;
+
+  @Prop({ type: Date })
+  createdAt: Date;
+
+  @Prop({ type: Date })
+  updatedAt: Date;
 }
 
 export const FinderSchema = SchemaFactory.createForClass(Finder);
