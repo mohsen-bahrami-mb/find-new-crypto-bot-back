@@ -11,6 +11,7 @@ export class PdfService {
     res: Response,
     tradeData: TradeDocument,
     finderData: FinderDocument,
+    /** without exec */ fileName?: string,
   ) {
     const template: Template = {
       basePdf: BLANK_PDF,
@@ -99,7 +100,7 @@ export class PdfService {
     };
     const endPositionsPriceStr = tradeData.endPositionsPrice.map(
       (item) =>
-        `${item.tp}                ${item.sl}                        ${item.percentOfAmount}                              ${item.endPrice || ''}`,
+        `${item.tp}                ${item.sl}                          ${item.percentOfAmount}                              ${item.endPrice || ''}`,
     );
     const inputs = [
       {
@@ -117,8 +118,8 @@ export class PdfService {
         startTrading: `Start Trade Time:                ${tradeData.createdAt.toISOString()} (ISO TIME)`,
         endPositionsPrice: `End Positions Price:
 
-    tp                    sl                   percentOfAmount              endPrice
-__________________________________________________________________
+    tp                    sl                   Percent Of Amount              End Price
+___________________________________________________________________
 
 ${endPositionsPriceStr.join('\n\n')}
 `,
@@ -126,12 +127,15 @@ ${endPositionsPriceStr.join('\n\n')}
     ];
 
     const pdf = await generate({ template: template as any, inputs });
-    this.sendPdf(res, pdf);
+    this.sendPdf(res, pdf, fileName);
   }
 
-  private sendPdf(res: Response, pdf: Uint8Array) {
+  private sendPdf(res: Response, pdf: Uint8Array, fileName?: string) {
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename=output.pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=${fileName || 'statement'}.pdf`,
+    );
     res.setHeader('Content-Length', pdf.length);
     res.end(pdf);
   }
