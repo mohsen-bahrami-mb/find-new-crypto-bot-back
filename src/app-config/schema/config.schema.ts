@@ -4,8 +4,14 @@ import { Trade } from 'src/trade/schema/trade.schema';
 
 export type ConfigDocument = HydratedDocument<Config>;
 
-@Schema({})
+@Schema({ timestamps: true })
 export class Config {
+  @Prop({ type: String, required: true })
+  username: string;
+  
+  @Prop({ type: String, required: true })
+  password: string;
+
   @Prop({ type: String })
   telegramToken?: string;
 
@@ -20,6 +26,12 @@ export class Config {
 
   @Prop({ type: Date })
   finderEndAt?: Date;
+
+  @Prop({ type: Date })
+  createdAt: Date;
+
+  @Prop({ type: Date })
+  updatedAt: Date;
 }
 
 export const ConfigSchema = SchemaFactory.createForClass(Config);

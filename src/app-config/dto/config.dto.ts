@@ -9,6 +9,14 @@ import {
 export class ConfigDto {
   @IsOptional()
   @IsString()
+  username?: string;
+
+  @IsOptional()
+  @IsString()
+  password?: string;
+
+  @IsOptional()
+  @IsString()
   telegramToken?: string;
 
   @IsOptional()
@@ -27,4 +35,12 @@ export class ConfigDto {
   @IsOptional()
   @IsDate()
   finderEndAt?: Date;
+
+  @IsOptional()
+  @IsDate()
+  createdAt?: Date;
+
+  @IsOptional()
+  @IsDate()
+  updatedAt?: Date;
 }
