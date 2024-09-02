@@ -48,7 +48,7 @@ export class AppConfigService {
       ? this.returnAllConfig.name
       : this.returnConfig.name;
     const dbConfig = await this.configModel.findOne({});
-    this.config = dbConfig.toObject();
+    if (dbConfig) this.config = dbConfig.toObject();
     return this[returnFn]();
   }
 

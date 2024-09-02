@@ -1,7 +1,7 @@
 import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import TelegramBot from 'node-telegram-bot-api';
 import { AppConfigService } from 'src/app-config/app-config.service';
-import bcrypt from 'bcrypt';
+import * as bcrypt from 'bcrypt';
 import internal from 'stream';
 
 @Injectable()
