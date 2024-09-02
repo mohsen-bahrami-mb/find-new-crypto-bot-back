@@ -21,7 +21,8 @@ export class MonitorGateway {
   server: Server;
 
   constructor(
-    @Inject(forwardRef(() => MonitorService)) private monitorService,
+    @Inject(forwardRef(() => MonitorService))
+    private monitorService: MonitorService,
   ) {}
 
   @SubscribeMessage(EventListener.getTailLogs)

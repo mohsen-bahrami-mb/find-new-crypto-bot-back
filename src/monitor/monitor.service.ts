@@ -18,11 +18,14 @@ export class MonitorService {
     this.monitorModel = MonitorModel;
   }
 
-  async getTailLogs(count: string) {
-    const fromCount = Number(count);
-    if (Number.isNaN(fromCount)) return [];
+  async getTailLogs(count?: string) {
+    let fromCount = Number(count);
+    if (Number.isNaN(fromCount)) {
+      fromCount = await this.monitorModel.countDocuments();
+      fromCount = fromCount < this.monitorLogCountSize ? 0 : fromCount;
+    }
     const result = await this.monitorModel
-      .find({ count: { $gt: count } })
+      .find({ count: { $gt: fromCount } })
       .sort({ count: 1 })
       .limit(this.monitorLogCountSize);
     return result;
@@ -31,7 +34,7 @@ export class MonitorService {
     const fromCount = Number(count);
     if (Number.isNaN(fromCount)) return [];
     const result = await this.monitorModel
-      .find({ count: { $lt: count } })
+      .find({ count: { $lt: fromCount } })
       .sort({ count: 1 })
       .limit(this.monitorLogCountSize);
     return result;
