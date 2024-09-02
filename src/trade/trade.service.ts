@@ -248,11 +248,14 @@ export class TradeService {
         cryptoSymbol: crypto.cryptoSymbol,
         startPositionsPrice: [newStartPositionPrice],
         startPositionAmount: newStartPositionAmount,
-        endPositionsPrice: this.defaultEndPositionsPrice.map((def) => ({
-          tp: newStartPositionAmount[0] * def.tp,
-          sl: newStartPositionAmount[0] * def.sl * -1,
-          percentOfAmount: def.percentOfAmount,
-        })),
+        endPositionsPrice: this.defaultEndPositionsPrice.map(
+          (def, index, array) => ({
+            tp: newStartPositionAmount[0] * def.tp,
+            sl:
+              (array[index - 1] || newStartPositionAmount[0]).tp * def.sl * -1,
+            percentOfAmount: def.percentOfAmount,
+          }),
+        ),
       });
       await crypto.updateOne({ trade: trade._id });
       return trade;
