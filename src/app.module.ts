@@ -12,6 +12,7 @@ import { MonitorModule } from './monitor/monitor.module';
 import { TelegramBotModule } from './telegram-bot/telegram-bot.module';
 import { AppConfigModule } from './app-config/app-config.module';
 import { FileGeneratorModule } from './file-generator/file-generator.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { FileGeneratorModule } from './file-generator/file-generator.module';
     TelegramBotModule,
     AppConfigModule,
     FileGeneratorModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
