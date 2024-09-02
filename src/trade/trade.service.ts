@@ -252,7 +252,7 @@ export class TradeService {
           (def, index, array) => ({
             tp: newStartPositionAmount[0] * def.tp,
             sl:
-              (array[index - 1] || newStartPositionAmount[0]).tp * def.sl * -1,
+              (array[index - 1]?.tp || newStartPositionAmount[0]) * def.sl * -1,
             percentOfAmount: def.percentOfAmount,
           }),
         ),
