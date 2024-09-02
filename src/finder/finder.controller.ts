@@ -1,12 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
-import { FinderService } from './finder.service';
+import { Controller } from '@nestjs/common';
 
 @Controller('finder')
-export class FinderController {
-  constructor(readonly finderService: FinderService) {}
-
-  @Get()
-  newsList() {
-    return this.finderService.checkTargetNews();
-  }
-}
+export class FinderController {}
