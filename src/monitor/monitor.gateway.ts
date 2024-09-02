@@ -1,11 +1,11 @@
-import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, UseGuards } from '@nestjs/common';
 import {
   MessageBody,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import {
   EventEmitter,
   EventListener,
@@ -24,6 +24,14 @@ export class MonitorGateway {
     @Inject(forwardRef(() => MonitorService))
     private monitorService: MonitorService,
   ) {}
+
+  handleConnection(client: Socket) {
+    console.log(client);
+  }
+  
+  handleDisconnect(client: Socket) {
+    // console.log(client);
+  }
 
   @SubscribeMessage(EventListener.getTailLogs)
   private async getTailLogs(@MessageBody() count: string) {
