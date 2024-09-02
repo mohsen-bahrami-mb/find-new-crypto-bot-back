@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import TelegramBot from 'node-telegram-bot-api';
 import { AppConfigService } from 'src/app-config/app-config.service';
 import bcrypt from 'bcrypt';
@@ -12,10 +12,15 @@ export class TelegramBotService {
 
   private readonly logger = new Logger(TelegramBotService.name);
 
-  constructor(private appConfigService: AppConfigService) {
-    if (this.TELEGRAM_TOKEN) {
-      this.startBot(this.TELEGRAM_TOKEN);
-    }
+  constructor(
+    @Inject(forwardRef(() => AppConfigService))
+    private appConfigService: AppConfigService,
+  ) {}
+
+  async onApplicationBootstrap() {
+    const config = await this.appConfigService.getConfig(true);
+    const token = config.telegramToken || this.TELEGRAM_TOKEN;
+    if (token) this.startBot(token);
   }
 
   public startBot(token: string) {
@@ -49,8 +54,9 @@ export class TelegramBotService {
 
   private onStart() {
     this.bot.onText(/\/start/i, async (msg) => {
+      const config = this.appConfigService.config;
       const chatId = msg.chat.id;
-      if (this.appConfigService.config.telegramValidChatIds.includes(chatId))
+      if (config.telegramValidChatIds.includes(chatId))
         this.bot.sendMessage(chatId, 'you are connected to server...');
       else this.bot.sendMessage(chatId, 'please send password...');
     });
@@ -58,10 +64,11 @@ export class TelegramBotService {
 
   private onCheckPassword() {
     this.bot.on('message', async (msg) => {
+      const config = this.appConfigService.config;
       const chatId = msg.chat.id;
       const text = msg.text;
-      const isValidPassword = bcrypt.compareSync(text, 'hash');
-      if (this.appConfigService.config.telegramValidChatIds.includes(chatId))
+      const isValidPassword = bcrypt.compareSync(text, config.password);
+      if (config.telegramValidChatIds.includes(chatId))
         this.bot.sendMessage(chatId, 'you are connected to server...');
       else if (isValidPassword) {
         this.bot.sendMessage(chatId, 'successed connect to server ;)');

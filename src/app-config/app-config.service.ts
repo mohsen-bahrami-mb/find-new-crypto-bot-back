@@ -1,13 +1,17 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { Model } from 'mongoose';
 import { Config } from './schema/config.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { ConfigDto } from './dto/config.dto';
+import * as bcrypt from 'bcrypt';
+import { TelegramBotService } from 'src/telegram-bot/telegram-bot.service';
 
 @Injectable()
 export class AppConfigService {
   logger = new Logger(AppConfigService.name);
   config: ConfigDto = {
+    username: 'root',
+    password: 'Aa@123456',
     telegramToken: undefined,
     telegramValidChatIds: [],
     timezone: undefined,
@@ -19,36 +23,69 @@ export class AppConfigService {
 
   constructor(
     @InjectModel(Config.name) private ConfigModel: Model<Config>,
+    @Inject(forwardRef(() => TelegramBotService))
+    private telegramBotService: TelegramBotService,
   ) {
     this.configModel = ConfigModel;
   }
 
-  async getConfig() {
-    if (
-      this.config.telegramToken ||
-      this.config.timezone ||
-      this.config.finderStartAt ||
-      this.config.finderEndAt
-    ) {
-      return this.config;
+  async onApplicationBootstrap() {
+    const conf = await this.configModel.findOne({});
+    if (conf) {
+      this.config = conf.toObject();
+    } else {
+      const salt = bcrypt.genSaltSync(10);
+      const password = bcrypt.hashSync(this.config.password, salt);
+      await this.configModel.create({
+        password,
+        username: this.config.username,
+      });
     }
-    const dbConfig = await this.configModel.findOne();
-    if (dbConfig) {
-      this.config = {
-        finderEndAt: dbConfig.finderEndAt,
-        finderStartAt: dbConfig.finderStartAt,
-        timezone: dbConfig.timezone,
-        telegramToken: dbConfig.telegramToken,
-        telegramValidChatIds: dbConfig.telegramValidChatIds,
-      };
-      return this.config;
-    }
-    return this.config;
+  }
+
+  async getConfig(returnAll: boolean = false): Promise<ConfigDto> {
+    const returnFn = returnAll
+      ? this.returnAllConfig.name
+      : this.returnConfig.name;
+    const dbConfig = await this.configModel.findOne({});
+    this.config = dbConfig.toObject();
+    return this[returnFn]();
   }
 
   async putConfig(body: ConfigDto) {
-    this.config = body;
-    await this.configModel.findOneAndUpdate({}, body);
+    const updateObj = { ...body };
+    if (!updateObj.password) updateObj.password = this.config.password;
+    delete updateObj.username;
+    delete updateObj.createdAt;
+    delete updateObj.updatedAt;
+    const newConfig = await this.configModel.findOneAndUpdate({}, updateObj, {
+      new: true,
+    });
+    this.config = newConfig;
+    if (this.config.telegramToken)
+      this.telegramBotService.startBot(this.config.telegramToken);
     return this.config;
+  }
+
+  private async returnConfig() {
+    return {
+      finderEndAt: this.config.finderEndAt,
+      finderStartAt: this.config.finderStartAt,
+      timezone: this.config.timezone,
+      telegramToken: this.config.telegramToken,
+      username: this.config.username,
+    };
+  }
+
+  private async returnAllConfig() {
+    return {
+      finderEndAt: this.config.finderEndAt,
+      finderStartAt: this.config.finderStartAt,
+      timezone: this.config.timezone,
+      telegramToken: this.config.telegramToken,
+      telegramValidChatIds: this.config.telegramValidChatIds,
+      password: this.config.password,
+      username: this.config.username,
+    };
   }
 }
