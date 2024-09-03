@@ -20,10 +20,12 @@ export class MonitorService {
 
   async getTailLogs(count?: string) {
     let fromCount = Number(count);
-    if (Number.isNaN(fromCount)) {
-      fromCount = await this.monitorModel.countDocuments();
-      fromCount = fromCount < this.monitorLogCountSize ? 0 : fromCount;
-    }
+    const docCount = await this.monitorModel.countDocuments();
+    if (
+      Number.isNaN(fromCount) ||
+      (!Number.isNaN(fromCount) && fromCount > docCount)
+    )
+      fromCount = docCount - this.monitorLogCountSize;
     const result = await this.monitorModel
       .find({ count: { $gt: fromCount } })
       .sort({ count: 1 })
