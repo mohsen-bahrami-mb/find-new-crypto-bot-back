@@ -13,6 +13,8 @@ import { TelegramBotModule } from './telegram-bot/telegram-bot.module';
 import { AppConfigModule } from './app-config/app-config.module';
 import { FileGeneratorModule } from './file-generator/file-generator.module';
 import { AuthModule } from './auth/auth.module';
+import { AllExceptionsFilter } from './utils/exceptions/allExceptionsFilter';
+import { APP_FILTER } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -44,6 +46,12 @@ import { AuthModule } from './auth/auth.module';
     AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_FILTER,
+      useClass: AllExceptionsFilter,
+    },
+  ],
 })
 export class AppModule {}
