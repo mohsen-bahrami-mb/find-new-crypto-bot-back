@@ -43,7 +43,13 @@ export class MonitorService {
   }
 
   async addNewMonitorLog(data: MonitorLogDto[]) {
-    const insertData = await this.monitorModel.insertMany(data);
+    const docCount = await this.monitorModel.countDocuments();
+    const maopData = data.map((d, i) => ({
+      count: docCount + i + 1,
+      type: d.type,
+      log: d.log,
+    }));
+    const insertData = await this.monitorModel.insertMany(maopData);
     const result = insertData.map((d) => d.toObject());
     this.monitorGateway.addTailLogs(result);
   }

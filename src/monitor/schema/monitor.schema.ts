@@ -5,7 +5,7 @@ import { MonitorLogType as MonitorLogTypeEnum } from 'src/enums/monitor.enum';
 
 export type MonitorDocument = HydratedDocument<Monitor>;
 
-@Schema()
+@Schema({ timestamps: true })
 export class Monitor {
   @Prop({ type: Number, required: true })
   count: number;
@@ -19,6 +19,12 @@ export class Monitor {
 
   @Prop({ type: String, required: true })
   log: string;
+
+  @Prop({ type: Date })
+  createdAt: Date;
+
+  @Prop({ type: Date })
+  updatedAt: Date;
 }
 
 export const MonitorSchema = SchemaFactory.createForClass(Monitor);

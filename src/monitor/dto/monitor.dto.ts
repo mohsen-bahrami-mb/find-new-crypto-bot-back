@@ -3,7 +3,7 @@ import { MonitorLogType } from 'src/enums/monitor.enum';
 
 export class MonitorLogDto {
   @IsNumber()
-  count: number;
+  count?: number;
 
   @IsEnum(MonitorLogType)
   type: MonitorLogType;
