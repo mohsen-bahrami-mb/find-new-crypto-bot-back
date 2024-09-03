@@ -5,6 +5,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { ConfigDto } from './dto/config.dto';
 import * as bcrypt from 'bcrypt';
 import { TelegramBotService } from 'src/telegram-bot/telegram-bot.service';
+import { MonitorService } from 'src/monitor/monitor.service';
+import { MonitorLogType } from 'src/enums/monitor.enum';
 
 @Injectable()
 export class AppConfigService {
@@ -25,6 +27,7 @@ export class AppConfigService {
     @InjectModel(Config.name) private ConfigModel: Model<Config>,
     @Inject(forwardRef(() => TelegramBotService))
     private telegramBotService: TelegramBotService,
+    private monitorService: MonitorService,
   ) {
     this.configModel = ConfigModel;
   }
@@ -47,8 +50,16 @@ export class AppConfigService {
     const returnFn = returnAll
       ? this.returnAllConfig.name
       : this.returnConfig.name;
-    const dbConfig = await this.configModel.findOne({});
-    if (dbConfig) this.config = dbConfig.toObject();
+    try {
+      const dbConfig = await this.configModel.findOne({});
+      if (dbConfig) this.config = dbConfig.toObject();
+    } catch (error) {
+      const log = 'find config in db is failed';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log: log },
+      ]);
+    }
     return this[returnFn]();
   }
 
@@ -58,16 +69,24 @@ export class AppConfigService {
     delete updateObj.username;
     delete updateObj.createdAt;
     delete updateObj.updatedAt;
-    const newConfig = await this.configModel.findOneAndUpdate({}, updateObj, {
-      new: true,
-    });
-    this.config = newConfig;
+    try {
+      const newConfig = await this.configModel.findOneAndUpdate({}, updateObj, {
+        new: true,
+      });
+      this.config = newConfig;
+    } catch (error) {
+      const log = 'find config in db is failed';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log: log },
+      ]);
+    }
     if (this.config.telegramToken)
       this.telegramBotService.startBot(this.config.telegramToken);
     return this.config;
   }
 
-  private async returnConfig() {
+  private returnConfig() {
     return {
       finderEndAt: this.config.finderEndAt,
       finderStartAt: this.config.finderStartAt,
@@ -77,7 +96,7 @@ export class AppConfigService {
     };
   }
 
-  private async returnAllConfig() {
+  private returnAllConfig() {
     return {
       finderEndAt: this.config.finderEndAt,
       finderStartAt: this.config.finderStartAt,

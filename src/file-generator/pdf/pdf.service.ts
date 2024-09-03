@@ -1,12 +1,18 @@
-import { Injectable, Res } from '@nestjs/common';
+import { Injectable, Logger, Res } from '@nestjs/common';
 import { Template, BLANK_PDF, Schema } from '@pdfme/common';
 import { generate } from '@pdfme/generator';
 import { Response } from 'express';
+import { MonitorLogType } from 'src/enums/monitor.enum';
 import { FinderDocument } from 'src/finder/schema/finder.schema';
+import { MonitorService } from 'src/monitor/monitor.service';
 import { TradeDocument } from 'src/trade/schema/trade.schema';
 
 @Injectable()
 export class PdfService {
+  logger = new Logger(PdfService.name);
+
+  constructor(private monitorService: MonitorService) {}
+
   async generateTradeStatement(
     res: Response,
     tradeData: TradeDocument,
@@ -126,8 +132,16 @@ ${endPositionsPriceStr.join('\n\n')}
       },
     ];
 
-    const pdf = await generate({ template: template as any, inputs });
-    this.sendPdf(res, pdf, fileName);
+    try {
+      const pdf = await generate({ template: template as any, inputs });
+      this.sendPdf(res, pdf, fileName);
+    } catch (error) {
+      const log = 'cannot generate and send pdf';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log: log },
+      ]);
+    }
   }
 
   private sendPdf(res: Response, pdf: Uint8Array, fileName?: string) {

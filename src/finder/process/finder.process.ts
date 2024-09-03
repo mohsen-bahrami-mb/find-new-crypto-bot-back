@@ -12,13 +12,9 @@ export class FinderProcess {
 
   @Process(queueJob.checkNews)
   async tryit(job: Job<unknown>) {
-    try {
-      if (!this.timeAvaliable || this.timeAvaliable < Date.now()) {
-        // await this.finderService.checkTargetNews();
-        this.timeAvaliable = Date.now() + 3000;
-      }
-    } catch (err) {
-      this.logger.error(err, err.stack);
+    if (!this.timeAvaliable || this.timeAvaliable < Date.now()) {
+      // await this.finderService.checkTargetNews();
+      this.timeAvaliable = Date.now() + 3000;
     }
   }
 }

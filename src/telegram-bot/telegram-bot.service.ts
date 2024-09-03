@@ -3,6 +3,8 @@ import TelegramBot from 'node-telegram-bot-api';
 import { AppConfigService } from 'src/app-config/app-config.service';
 import * as bcrypt from 'bcrypt';
 import internal from 'stream';
+import { MonitorService } from 'src/monitor/monitor.service';
+import { MonitorLogType } from 'src/enums/monitor.enum';
 
 @Injectable()
 export class TelegramBotService {
@@ -15,6 +17,7 @@ export class TelegramBotService {
   constructor(
     @Inject(forwardRef(() => AppConfigService))
     private appConfigService: AppConfigService,
+    private monitorService: MonitorService,
   ) {}
 
   async onApplicationBootstrap() {
@@ -30,21 +33,41 @@ export class TelegramBotService {
   }
 
   public async sendMessage(msg: string) {
-    await Promise.all(
-      this.appConfigService.config.telegramValidChatIds.map(async (chatId) => {
-        await this.bot.sendMessage(chatId, msg);
-      }),
-    );
+    try {
+      await Promise.all(
+        this.appConfigService.config.telegramValidChatIds.map(
+          async (chatId) => {
+            await this.bot.sendMessage(chatId, msg);
+          },
+        ),
+      );
+    } catch (error) {
+      const log = 'send text messsage in telegram bot is faield';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log: log },
+      ]);
+    }
   }
   public async sendDoc(
     doc: string | internal.Stream | Buffer,
     filename: string,
   ) {
-    await Promise.all(
-      this.appConfigService.config.telegramValidChatIds.map(async (chatId) => {
-        await this.bot.sendDocument(chatId, doc, {}, { filename });
-      }),
-    );
+    try {
+      await Promise.all(
+        this.appConfigService.config.telegramValidChatIds.map(
+          async (chatId) => {
+            await this.bot.sendDocument(chatId, doc, {}, { filename });
+          },
+        ),
+      );
+    } catch (error) {
+      const log = 'send documents in telegram bot is faield';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log: log },
+      ]);
+    }
   }
 
   private initBot(token: string) {

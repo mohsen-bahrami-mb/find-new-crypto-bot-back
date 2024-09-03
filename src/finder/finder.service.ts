@@ -6,6 +6,8 @@ import { Finder, FinderDocument } from './schema/finder.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { TradeService } from 'src/trade/trade.service';
 import { BrowserService } from 'src/browser/browser.service';
+import { MonitorService } from 'src/monitor/monitor.service';
+import { MonitorLogType } from 'src/enums/monitor.enum';
 
 @Injectable()
 export class FinderService {
@@ -13,13 +15,14 @@ export class FinderService {
   LINK_BINANCE_NEW_CRYPTO_LIST = process.env.LINK_BINANCE_NEW_CRYPTO_LIST;
 
   finderModel: Model<Finder>;
-  
+
   private page: Puppeteer.Page;
 
   constructor(
     @InjectModel(Finder.name) private FinderModel: Model<Finder>,
     private readonly tradeService: TradeService,
     private browserService: BrowserService,
+    private monitorService: MonitorService,
   ) {
     this.finderModel = FinderModel;
   }
@@ -29,8 +32,16 @@ export class FinderService {
   }
 
   public async initPage() {
-    this.page?.close();
-    this.page = await this.browserService.browser.newPage();
+    try {
+      this.page?.close();
+      this.page = await this.browserService.browser.newPage();
+    } catch (error) {
+      const log = 'cannot init binance page in browser';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log: log },
+      ]);
+    }
   }
 
   private async newsList() {
@@ -68,38 +79,50 @@ export class FinderService {
       }));
       return data;
     } catch (error) {
-      this.logger.error(`Cannot get data from binance - ${error}`, error.stack);
+      const log = 'Cannot get data from binance';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log: log },
+      ]);
     }
   }
 
   private async isNewOne(newsList: BinanceNews[]) {
     let result: BinanceNews[] = [];
-    await Promise.all(
-      newsList.map(async (news) => {
-        const cryptoName_rgx = new RegExp(news?.cryptoName, 'i');
-        const cryptoSymbol_rgx = new RegExp(news?.cryptoSymbol, 'i');
-        const newsDate = new Date(news.newsDate);
-        const cryptos = await this.finderModel.find({
-          $and: [
-            {
-              $or: [
-                { cryptoName: { $regex: cryptoName_rgx } },
-                { cryptoSymbol: { $regex: cryptoSymbol_rgx } },
-              ],
-            },
-            {
-              newsDate: { $gte: newsDate },
-            },
-          ],
-        });
-        if (!cryptos.length) {
-          result.push({
-            ...news,
-            newsDate,
+    try {
+      await Promise.all(
+        newsList.map(async (news) => {
+          const cryptoName_rgx = new RegExp(news?.cryptoName, 'i');
+          const cryptoSymbol_rgx = new RegExp(news?.cryptoSymbol, 'i');
+          const newsDate = new Date(news.newsDate);
+          const cryptos = await this.finderModel.find({
+            $and: [
+              {
+                $or: [
+                  { cryptoName: { $regex: cryptoName_rgx } },
+                  { cryptoSymbol: { $regex: cryptoSymbol_rgx } },
+                ],
+              },
+              {
+                newsDate: { $gte: newsDate },
+              },
+            ],
           });
-        }
-      }),
-    );
+          if (!cryptos.length) {
+            result.push({
+              ...news,
+              newsDate,
+            });
+          }
+        }),
+      );
+    } catch (error) {
+      const log = 'cannot check on db finded crypto is new';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log: log },
+      ]);
+    }
     return result;
   }
 
@@ -123,10 +146,30 @@ export class FinderService {
       .filter((item) => item);
     const newCryptos = await this.isNewOne(newCryptoWillList);
     if (newCryptos.length) {
-      const result = (await this.finderModel.insertMany(
-        newCryptos,
-      )) as FinderDocument[];
-      await this.tradeService.newCryptos(result);
+      try {
+        const result = (await this.finderModel.insertMany(
+          newCryptos,
+        )) as FinderDocument[];
+        const monitorlogs = newCryptos.map((crypto) => {
+          const cryptoName = `${crypto.cryptoName} (${crypto.cryptoSymbol})`;
+          const findTime =
+            (crypto.requestEnd.getTime() - crypto.requestStart.getTime()) /
+            1000;
+          return {
+            log: ` find crypto ${cryptoName} - find time: ${findTime.toFixed(2)}s`,
+            type: MonitorLogType.info,
+          };
+        });
+        this.monitorService.addNewMonitorLog(monitorlogs);
+        await this.tradeService.newCryptos(result);
+      } catch (error) {
+        const log =
+          'cannot insert new crypot finded in db, therefore cannot call trade service';
+        this.logger.error(log, error.stack);
+        this.monitorService.addNewMonitorLog([
+          { type: MonitorLogType.error, log: log },
+        ]);
+      }
     }
   }
 }
