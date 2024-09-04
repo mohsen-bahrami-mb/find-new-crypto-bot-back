@@ -35,10 +35,15 @@ export class MonitorService {
   async getHeadLogs(count: string) {
     const fromCount = Number(count);
     if (Number.isNaN(fromCount)) return [];
-    const result = await this.monitorModel
+    let result = await this.monitorModel
       .find({ count: { $lt: fromCount } })
-      .sort({ count: 1 })
+      .sort({ count: -1 })
       .limit(this.monitorLogCountSize);
+    result = result.sort((a, b) => {
+      if (a.count < b.count) return -1;
+      if (a.count > b.count) return 1;
+      return 0;
+    });
     return result;
   }
 
