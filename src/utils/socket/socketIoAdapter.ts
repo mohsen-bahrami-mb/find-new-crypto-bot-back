@@ -13,7 +13,14 @@ export class SocketIoAdapter extends IoAdapter {
 
   createIOServer(port: number, options?: ServerOptions) {
     port = this.configService.get<number>('SOCKETIO_PORT');
-    const server = super.createIOServer(port, options);
+    const server = super.createIOServer(port, {
+      ...options,
+      cors: {
+        origin: '*',
+        methods: ['GET', 'POST'],
+        // credentials: true,
+      },
+    });
     return server;
   }
 }

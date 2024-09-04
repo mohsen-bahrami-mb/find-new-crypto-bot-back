@@ -1,10 +1,5 @@
-import {
-  IsArray,
-  IsDate,
-  IsEmpty,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsArray, IsDate, IsOptional, IsString } from 'class-validator';
 
 export class ConfigDto {
   @IsOptional()
@@ -21,6 +16,7 @@ export class ConfigDto {
 
   @IsOptional()
   @IsArray({ each: true })
+  @IsOptional()
   @IsString()
   telegramValidChatIds?: (string | number)[];
 
@@ -29,18 +25,22 @@ export class ConfigDto {
   timezone?: string;
 
   @IsOptional()
+  @Transform(({ value }) => (value ? new Date(value) : null))
   @IsDate()
   finderStartAt?: Date;
 
   @IsOptional()
+  @Transform(({ value }) => (value ? new Date(value) : null))
   @IsDate()
   finderEndAt?: Date;
 
   @IsOptional()
+  @Transform(({ value }) => (value ? new Date(value) : null))
   @IsDate()
   createdAt?: Date;
 
   @IsOptional()
+  @Transform(({ value }) => (value ? new Date(value) : null))
   @IsDate()
   updatedAt?: Date;
 }

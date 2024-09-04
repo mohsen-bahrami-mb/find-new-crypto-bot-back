@@ -66,6 +66,10 @@ export class AppConfigService {
   async putConfig(body: ConfigDto) {
     const updateObj = { ...body };
     if (!updateObj.password) updateObj.password = this.config.password;
+    else {
+      const salt = bcrypt.genSaltSync(10);
+      updateObj.password = bcrypt.hashSync(updateObj.password, salt);
+    }
     delete updateObj.username;
     delete updateObj.createdAt;
     delete updateObj.updatedAt;
