@@ -87,7 +87,7 @@ export class AppConfigService {
     }
     if (this.config.telegramToken)
       this.telegramBotService.startBot(this.config.telegramToken);
-    return this.config;
+    return this.returnConfig();
   }
 
   private returnConfig() {
