@@ -409,10 +409,12 @@ export class TradeService {
   }
 
   async MexcLoginPage(res: Response) {
+    const qrHoverToShowSeloctor = '.Form_qrcodeTxt__8TIo0';
     const qrCodeSelector = '.QrcodeLogin_qrcode__IGJHy';
     if (!this.browserService.browser) await this.browserService.initBrowser();
     if (!this.MexcPage) await this.initMexcPage();
     await this.MexcPage.goto(this.LINK_MEXC_LOGIN_PAGE);
+    await this.MexcPage.hover(qrHoverToShowSeloctor);
     await this.MexcPage.waitForSelector(qrCodeSelector);
     // send screenshot for clinet to accept login
     return this.sendSnapshot(res, this.MexcPage);
