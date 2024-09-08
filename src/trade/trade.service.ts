@@ -30,7 +30,7 @@ export class TradeService {
   isLoginGateIoPage = false;
   isLoginMexcPage = false;
   /** in miliseconds */ maximumRequstTime = 20000;
-  /** (0 - 1) * 100% */ percentOfAmount = 100;
+  /** (0 - 1) * 100% */ percentOfAmount = 1;
   defaultEndPositionsPrice: EndPositionsPriceDto[] = [];
 
   tradeModle: Model<Trade>;
@@ -51,11 +51,24 @@ export class TradeService {
       await this.initGateIoPage();
       await this.initMexcPage();
     }
+    const defaultTrader = await this.defaultTradeModle.findOne({});
+    if (defaultTrader) {
+      this.defaultEndPositionsPrice = defaultTrader.endPositionsPrice;
+      this.maximumRequstTime = defaultTrader.maximumRequstTime;
+      this.percentOfAmount = defaultTrader.percentOfAmount;
+    } else {
+      const saveRes = {
+        endPositionsPrice: this.defaultEndPositionsPrice,
+        maximumRequstTime: this.maximumRequstTime,
+        percentOfAmount: this.percentOfAmount,
+      };
+      await this.defaultTradeModle.create(saveRes);
+    }
   }
 
   async getManager() {
     if (
-      this.defaultEndPositionsPrice.length &&
+      this.defaultEndPositionsPrice?.length &&
       this.maximumRequstTime &&
       this.percentOfAmount
     ) {
@@ -79,7 +92,8 @@ export class TradeService {
   }
 
   async putManager(body: ManagerDto) {
-    this.defaultEndPositionsPrice = body.endPositionsPrice;
+    this.defaultEndPositionsPrice =
+      body?.endPositionsPrice || this.defaultEndPositionsPrice;
     this.maximumRequstTime = body.maximumRequstTime;
     this.percentOfAmount = body.percentOfAmount;
     await this.defaultTradeModle.findOneAndUpdate({}, body);
