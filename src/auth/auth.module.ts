@@ -17,7 +17,7 @@ import { TelegramBotService } from 'src/telegram-bot/telegram-bot.service';
       global: true,
       useFactory: (config: ConfigService) => ({
         secret: process.env.JWT_SECRET_KEY,
-        // signOptions: { expiresIn: '60s' },
+        signOptions: { expiresIn: '7 days' },
       }),
     }),
   ],
