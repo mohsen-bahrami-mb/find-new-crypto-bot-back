@@ -16,6 +16,10 @@ import { EndPositionsPriceDto, ManagerDto } from './dto/manager.dto';
 import { StatementParamDto, StatementQueryDto } from './dto/statement.dto';
 import { TradeBroker, TradeState } from 'src/enums/trade.enum';
 import { FinderDocument } from 'src/finder/schema/finder.schema';
+import {
+  ChosenTradeOfPageManagment,
+  TradeOfPageManagment,
+} from 'src/types/trade.type';
 
 @Injectable()
 export class TradeService {
@@ -31,6 +35,8 @@ export class TradeService {
   isLoginMexcPage = false;
   /** in miliseconds */ maximumRequstTime = 20000;
   /** (0 - 1) * 100% */ percentOfAmount = 1;
+  GateAvailableMoney: number;
+  MexcAvailableMoney: number;
   defaultEndPositionsPrice: EndPositionsPriceDto[] = [];
 
   tradeModle: Model<Trade>;
@@ -66,6 +72,7 @@ export class TradeService {
     }
   }
 
+  // api
   async getManager() {
     if (
       this.defaultEndPositionsPrice?.length &&
@@ -223,17 +230,17 @@ export class TradeService {
     broker: keyof typeof TradeBroker,
   ): Promise<TradeDocument | void> {
     const cryptoPairSymbol = `${crypto.cryptoSymbol}_${this.BaseCryptoSymbol}`;
-    let succedFullTradeStart: boolean;
+    let succedFullTradeStart: boolean = false;
     let newStartPositionPrice: number;
     let newStartPositionAmount: number;
     if (broker === TradeBroker.gate) {
       // call check in broker
-      // succedFullTradeStart = checker
-      // newStartPositionPrice = checker
+      const tradeOfPageManagment: TradeOfPageManagment | undefined = {} as any;
+      checkTradeStatus(tradeOfPageManagment);
     } else if (broker === TradeBroker.mexc) {
       // call check in broker
-      // succedFullTradeStart = checker
-      // newStartPositionPrice = checker
+      const tradeOfPageManagment: TradeOfPageManagment | undefined = {} as any;
+      checkTradeStatus(tradeOfPageManagment);
     }
     if (succedFullTradeStart) return;
 
@@ -281,6 +288,25 @@ export class TradeService {
         cryptoName: crypto.cryptoName,
         cryptoSymbol: crypto.cryptoSymbol,
       });
+
+    function checkTradeStatus({
+      tradeList,
+      acountAmount,
+    }: TradeOfPageManagment) {
+      let result: ChosenTradeOfPageManagment;
+      tradeList?.map((t) => {
+        if (
+          t.symbol === cryptoPairSymbol &&
+          t.amount / acountAmount >
+            this.GateAvailableMoney * (this.percentOfAmount - 0.05) // to ensure the fee: 5 percent tolerance
+        ) {
+          succedFullTradeStart = true;
+          newStartPositionAmount = t.amount;
+          result = t;
+        }
+      });
+      return result;
+    }
   }
 
   // gateio trade
@@ -307,24 +333,31 @@ export class TradeService {
   }
 
   async GateIoBuyCrypto() {
-    const notifHTMLStr = await this.GateIoPage.evaluate(() => {
-      const marketOrderTypeSelector =
-        '.tr-font-medium.trade-mode-list-item span';
-      const availablePrecentageSelector =
-        '.mantine-GateSlider-root.mantine-Slider-root.gui-font-face.mantine-1l1492h input';
-      const buyBtnSelector =
-        '.mantine-UnstyledButton-root.mantine-GateButton-root.mantine-Button-root.gui-font-face.mantine-11d65fe';
-      const notifListSelector = '#noty_toast_layout_container';
-      // change order tab to buy on the moment
-      document.querySelector<HTMLElement>(marketOrderTypeSelector).click();
-      // set perecentage for buy amount of crypto
-      document.querySelector<HTMLInputElement>(
-        availablePrecentageSelector,
-      ).value = '100';
-      // buy action
-      (document.querySelector(buyBtnSelector) as HTMLElement).click();
-      return document.querySelector(notifListSelector).innerHTML;
-    });
+    const { notifHTMLStr, availAbleMoney } = await this.GateIoPage.evaluate(
+      (percentOfAmount) => {
+        const marketOrderTypeSelector =
+          '.tr-font-medium.trade-mode-list-item span';
+        const availablePrecentageSelector =
+          '.mantine-GateSlider-root.mantine-Slider-root.gui-font-face.mantine-1l1492h input';
+        const buyBtnSelector =
+          '.mantine-UnstyledButton-root.mantine-GateButton-root.mantine-Button-root.gui-font-face.mantine-11d65fe';
+        const notifListSelector = '#noty_toast_layout_container';
+        // change order tab to buy on the moment
+        document.querySelector<HTMLElement>(marketOrderTypeSelector).click();
+        // set perecentage for buy amount of crypto
+        document.querySelector<HTMLInputElement>(
+          availablePrecentageSelector,
+        ).value = (100 * percentOfAmount).toFixed(2);
+        // buy action
+        const availAbleMoney: string = undefined;
+        (document.querySelector(buyBtnSelector) as HTMLElement).click();
+        const notifHTMLStr =
+          document.querySelector(notifListSelector).innerHTML;
+        return { notifHTMLStr, availAbleMoney };
+      },
+      this.percentOfAmount,
+    );
+    this.GateAvailableMoney = Number(availAbleMoney) ?? 0;
     return notifHTMLStr;
   }
 
@@ -402,9 +435,10 @@ export class TradeService {
       return availableMoney;
     });
     // set amount money to buy crypto
+    this.MexcAvailableMoney = Number(availableMoney) ?? 0;
     await this.MexcPage.type(
       'input[data-testid=spot-trade-buyTotal]',
-      availableMoney,
+      (this.MexcAvailableMoney * this.percentOfAmount).toFixed(2),
     );
     // buy action and get notif
     const buyBtnSelector = 'button[data-testid=spot-trade-orderBuyBtn]';
