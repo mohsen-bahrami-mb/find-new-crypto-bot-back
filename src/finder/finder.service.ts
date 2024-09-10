@@ -8,6 +8,7 @@ import { TradeService } from 'src/trade/trade.service';
 import { BrowserService } from 'src/browser/browser.service';
 import { MonitorService } from 'src/monitor/monitor.service';
 import { MonitorLogType } from 'src/enums/monitor.enum';
+import { AppConfigService } from 'src/app-config/app-config.service';
 
 @Injectable()
 export class FinderService {
@@ -20,7 +21,8 @@ export class FinderService {
 
   constructor(
     @InjectModel(Finder.name) private FinderModel: Model<Finder>,
-    private readonly tradeService: TradeService,
+    private appConfigService: AppConfigService,
+    private tradeService: TradeService,
     private browserService: BrowserService,
     private monitorService: MonitorService,
   ) {
@@ -161,7 +163,11 @@ export class FinderService {
           };
         });
         this.monitorService.addNewMonitorLog(monitorlogs);
-        await this.tradeService.newCryptos(result);
+        const startTime = new Date(this.appConfigService.config.finderStartAt);
+        const endTime = new Date(this.appConfigService.config.finderEndAt);
+        const nowTime = new Date();
+        if (nowTime > startTime && nowTime < endTime)
+          await this.tradeService.newCryptos(result);
       } catch (error) {
         const log =
           'cannot insert new crypot finded in db, therefore cannot call trade service';
