@@ -7,7 +7,6 @@
 // فانکشن چکر در مواقع خرید باید از طرف بقیه موارد این فانکشن بن بشه
 // فانکشن سلر بایید برای گیت و مکسی زده بشه
 
-// فانکشن چکر و منیج باید باهم در یک پراسس جدا صدا زده بشن
 import {
   BadRequestException,
   Injectable,
@@ -48,6 +47,7 @@ export class TradeService {
   GateAvailableMoney: number;
   MexcAvailableMoney: number;
   defaultEndPositionsPrice: EndPositionsPriceDto[] = [];
+  isCheckBrokerCryptosBusy: boolean = false;
 
   tradeModle: Model<Trade>;
   defaultTradeModle: Model<DefaultTrade>;
@@ -232,15 +232,10 @@ export class TradeService {
     let succedFullTradeStart: boolean = false;
     let newStartPositionPrice: number;
     let newStartPositionAmount: number;
-    if (broker === TradeBroker.gate) {
-      // call check in broker
-      const tradeOfPageManagment: TradeOfPageManagment | undefined = {} as any;
-      checkTradeStatus(tradeOfPageManagment);
-    } else if (broker === TradeBroker.mexc) {
-      // call check in broker
-      const tradeOfPageManagment: TradeOfPageManagment | undefined = {} as any;
-      checkTradeStatus(tradeOfPageManagment);
-    }
+
+    const tradeOfPageManagment = await this.checkBrockerCryptos(broker, true);
+    if (tradeOfPageManagment) checkTradeStatus(tradeOfPageManagment);
+
     if (succedFullTradeStart) return;
 
     const existTrade = await this.tradeModle.findOne({
@@ -306,9 +301,9 @@ export class TradeService {
   }
 
   /** this function check db to recive to target or position and call seller function */
-  async manageCryptos(
+  private async manageCryptos(
     { tradeList }: TradeOfPageManagment | undefined,
-    broker: TradeBroker,
+    broker: keyof typeof TradeBroker,
   ) {
     await Promise.all(
       tradeList.map(async (t) => {
@@ -340,15 +335,14 @@ export class TradeService {
               endPrice = { index, value: t.price };
             }
           });
-          let sellData;
-          if (broker === TradeBroker.gate) {
-            // call sell fn and set for sellData
-          }
-          if (broker === TradeBroker.mexc) {
-            // call sell fn and set for sellData
-          }
           // call sell in borkers and pass sellAmount and update sellAmount and endAmount
-          const { sellAmountBroker, endPositionPriceBroker } = sellData as any;
+          const sellData = await this.sellBrockerCryptos(
+            broker,
+            t.symbol,
+            sellAmount,
+          );
+          if (!sellData) return;
+          const { sellAmountBroker, endPositionPriceBroker } = sellData;
           sellAmount = sellAmountBroker;
           await existTrade.updateOne({
             state,
@@ -361,6 +355,61 @@ export class TradeService {
         }
       }),
     );
+  }
+
+  public async checkCryptosInProccess() {
+    const gatePageManagment = await this.checkBrockerCryptos(TradeBroker.gate);
+    if (gatePageManagment) await this.manageCryptos(gatePageManagment, TradeBroker.gate);
+    const mexcPageManagment = await this.checkBrockerCryptos(TradeBroker.mexc);
+    if (mexcPageManagment) await this.manageCryptos(mexcPageManagment, TradeBroker.mexc);
+  }
+
+  private async checkBrockerCryptos(
+    broker: keyof typeof TradeBroker,
+    isBusy?: boolean,
+  ): Promise<TradeOfPageManagment | undefined> {
+    if (this.isCheckBrokerCryptosBusy) return;
+    if (isBusy) this.isCheckBrokerCryptosBusy = true;
+    let result: TradeOfPageManagment = undefined;
+    try {
+      if (broker === TradeBroker.gate) {
+        // call check in broker
+        // return await (async () => {});
+      }
+      if (broker === TradeBroker.mexc) {
+        // call check in broker
+        // return await (async () => {});
+      }
+    } finally {
+      this.isCheckBrokerCryptosBusy = false;
+      return result;
+    }
+  }
+
+  private async sellBrockerCryptos(
+    broker: keyof typeof TradeBroker,
+    cryptoSymbol: string,
+    sellAmount: number,
+  ): Promise<
+    | {
+        sellAmountBroker: number;
+        endPositionPriceBroker: number;
+      }
+    | undefined
+  > {
+    let result: {
+      sellAmountBroker: number;
+      endPositionPriceBroker: number;
+    } = undefined;
+    if (broker === TradeBroker.gate) {
+      // call sell in broker
+      // return await (async () => {});
+    }
+    if (broker === TradeBroker.mexc) {
+      // call sell in broker
+      // return await (async () => {});
+    }
+    return result;
   }
 
   // gateio trade

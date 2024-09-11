@@ -4,6 +4,9 @@ import { Trade, TradeSchema } from './schema/trade.schema';
 import { TradeService } from './trade.service';
 import { TradeController } from './trade.controller';
 import { DefaultTrade, DefaultTradeSchema } from './schema/defaultTrade.schema';
+import { TradeTask } from './task/trade.task';
+import { BullModule } from '@nestjs/bull';
+import { queue } from 'src/enums/redis.enum';
 
 @Module({
   imports: [
@@ -11,8 +14,9 @@ import { DefaultTrade, DefaultTradeSchema } from './schema/defaultTrade.schema';
       { name: Trade.name, schema: TradeSchema },
       { name: DefaultTrade.name, schema: DefaultTradeSchema },
     ]),
+    BullModule.registerQueue({ name: queue.trade }),
   ],
-  providers: [TradeService],
+  providers: [TradeService, TradeTask],
   controllers: [TradeController],
 })
 export class TradeModule {}
