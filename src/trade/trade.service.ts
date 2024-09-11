@@ -1,3 +1,13 @@
+// موارد باقی مانده:
+
+// بخاطر اینکه کال استک جاوااسکرپت پر نشه صدا زدن این فانکشن ها باید توی صف باشه و توش دیتا ست بشه
+// دیتایی که به فانکشن خرید داده میشه همون مواردیه که از فایندر پیدا شده. و دیتای چکر ایدی دیتابیس ترید میشه
+
+// فانکشن چکر روی صفحات گیت و مکسی
+// فانکشن چکر در مواقع خرید باید از طرف بقیه موارد این فانکشن بن بشه
+// فانکشن سلر بایید برای گیت و مکسی زده بشه
+
+// فانکشن چکر و منیج باید باهم در یک پراسس جدا صدا زده بشن
 import {
   BadRequestException,
   Injectable,
@@ -195,21 +205,10 @@ export class TradeService {
     // just select first one for trade. based on the employer document
     const buy = await this.buyIsAppropriate(whiteList[0]);
     while (true) {
-      // بخاطر اینکه کال استک جاوااسکرپت پر نشه صدا زدن این فانکشن ها باید توی صف باشه و توش دیتا ست بشه
-      // دیتایی که به فانکشن خرید داده میشه همون مواردیه که از فایندر پیدا شده. و دیتای چکر ایدی دیتابیس ترید میشه
       const checker = await this.checkSaveTrade(whiteList[0], buy.brocker);
       if (!checker || checker.state === TradeState.startFailed) break;
     }
   }
-
-  async sellCrypto() {
-    // this function check db to recive to target or position
-    // change target? call it
-    // change stop? call it
-    // returns sell bool
-  }
-  async changeTarget() {}
-  async changeStop() {}
 
   private timeAppropriateFromNow(requestEnd: Date) {
     return requestEnd.getTime() - Date.now() < this.maximumRequstTime;
@@ -269,14 +268,11 @@ export class TradeService {
         cryptoSymbol: crypto.cryptoSymbol,
         startPositionsPrice: [newStartPositionPrice],
         startPositionAmount: newStartPositionAmount,
-        endPositionsPrice: this.defaultEndPositionsPrice.map(
-          (def, index, array) => ({
-            tp: newStartPositionAmount[0] * def.tp,
-            sl:
-              (array[index - 1]?.tp || newStartPositionAmount[0]) * def.sl * -1,
-            percentOfAmount: def.percentOfAmount,
-          }),
-        ),
+        endPositionsPrice: this.defaultEndPositionsPrice.map((def) => ({
+          tp: def.tp,
+          sl: def.sl,
+          percentOfAmount: def.percentOfAmount,
+        })),
       });
       await crypto.updateOne({ trade: trade._id });
       return trade;
@@ -307,6 +303,64 @@ export class TradeService {
       });
       return result;
     }
+  }
+
+  /** this function check db to recive to target or position and call seller function */
+  async manageCryptos(
+    { tradeList }: TradeOfPageManagment | undefined,
+    broker: TradeBroker,
+  ) {
+    await Promise.all(
+      tradeList.map(async (t) => {
+        if (t.amount > 1) {
+          const existTrade = await this.tradeModle.findOne({
+            state: TradeState.onTrade,
+            cryptoSymbol: t.symbol,
+          });
+          let sellAmount = NaN;
+          let state = existTrade.state;
+          let endPrice = { index: NaN, value: NaN };
+          // check is target or stop lost toched
+          existTrade.endPositionsPrice.forEach((endP, index, arr) => {
+            const slPrice =
+              endP.sl *
+              existTrade.startPositionsPrice[0] *
+              (index === 0 ? 1 : arr[index - 1].tp);
+            if (!endP.endPrice && slPrice >= t.price) {
+              sellAmount = t.amount;
+              state = TradeState.endTrade;
+              endPrice = { index, value: t.price };
+            }
+            if (
+              !endP.endPrice &&
+              existTrade.startPositionsPrice[0] * endP.tp <= t.price
+            ) {
+              sellAmount =
+                endP.percentOfAmount * existTrade.startPositionAmount;
+              endPrice = { index, value: t.price };
+            }
+          });
+          let sellData;
+          if (broker === TradeBroker.gate) {
+            // call sell fn and set for sellData
+          }
+          if (broker === TradeBroker.mexc) {
+            // call sell fn and set for sellData
+          }
+          // call sell in borkers and pass sellAmount and update sellAmount and endAmount
+          const { sellAmountBroker, endPositionPriceBroker } = sellData as any;
+          sellAmount = sellAmountBroker;
+          await existTrade.updateOne({
+            state,
+            endPositionsPrice: [
+              ...existTrade.endPositionsPrice,
+              endPositionPriceBroker,
+            ],
+            endPositionAmount: (existTrade.endPositionAmount ?? 0) + sellAmount,
+          });
+        }
+      }),
+    );
   }
 
   // gateio trade
