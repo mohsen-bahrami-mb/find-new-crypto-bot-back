@@ -10,6 +10,7 @@
 import {
   BadRequestException,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
@@ -29,6 +30,8 @@ import {
   ChosenTradeOfPageManagment,
   TradeOfPageManagment,
 } from 'src/types/trade.type';
+import { MonitorService } from 'src/monitor/monitor.service';
+import { MonitorLogType } from 'src/enums/monitor.enum';
 
 @Injectable()
 export class TradeService {
@@ -54,6 +57,7 @@ export class TradeService {
 
   constructor(
     private browserService: BrowserService,
+    private monitorService: MonitorService,
     @InjectModel(Trade.name) private TradeModle: Model<Trade>,
     @InjectModel(DefaultTrade.name)
     private DefaultTradeModle: Model<DefaultTrade>,
@@ -78,7 +82,15 @@ export class TradeService {
         maximumRequstTime: this.maximumRequstTime,
         percentOfAmount: this.percentOfAmount,
       };
-      await this.defaultTradeModle.create(saveRes);
+      try {
+        await this.defaultTradeModle.create(saveRes);
+      } catch (error) {
+        const log = 'cannot create default trade in db';
+        this.logger.error(log, error.stack);
+        this.monitorService.addNewMonitorLog([
+          { type: MonitorLogType.error, log },
+        ]);
+      }
     }
   }
 
@@ -109,16 +121,24 @@ export class TradeService {
   }
 
   async putManager(body: ManagerDto) {
-    this.defaultEndPositionsPrice =
-      body?.endPositionsPrice || this.defaultEndPositionsPrice;
-    this.maximumRequstTime = body.maximumRequstTime;
-    this.percentOfAmount = body.percentOfAmount;
-    await this.defaultTradeModle.findOneAndUpdate({}, body);
-    return {
-      endPositionsPrice: this.defaultEndPositionsPrice,
-      maximumRequstTime: this.maximumRequstTime,
-      percentOfAmount: this.percentOfAmount,
-    };
+    try {
+      await this.defaultTradeModle.findOneAndUpdate({}, body);
+      this.defaultEndPositionsPrice =
+        body?.endPositionsPrice || this.defaultEndPositionsPrice;
+      this.maximumRequstTime = body.maximumRequstTime;
+      this.percentOfAmount = body.percentOfAmount;
+      return {
+        endPositionsPrice: this.defaultEndPositionsPrice,
+        maximumRequstTime: this.maximumRequstTime,
+        percentOfAmount: this.percentOfAmount,
+      };
+    } catch (error) {
+      const log = 'cannot update trade manager in db';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
   }
 
   async getStatement({ limit = 0, skip = 0 }: StatementQueryDto) {
@@ -150,30 +170,67 @@ export class TradeService {
     body.forEach((endPos, index) => {
       if (!newEndPos?.[index]?.endPrice) newEndPos[index] = endPos;
     });
-    return await trade.updateOne(
-      { endPositionsPrice: newEndPos },
-      { new: true },
-    );
+    try {
+      return await trade.updateOne(
+        { endPositionsPrice: newEndPos },
+        { new: true },
+      );
+    } catch (error) {
+      const log =
+        'cannot update trade statment manager: ' + trade._id.toString();
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
   }
 
   async initGateIoPage() {
-    this.GateIoPage?.close();
-    this.GateIoPage = await this.browserService.browser.newPage();
-    await this.GateIoPage.setViewport({ width: 1200, height: 700 });
+    try {
+      this.GateIoPage?.close();
+      this.GateIoPage = await this.browserService.browser.newPage();
+      await this.GateIoPage.setViewport({ width: 1200, height: 700 });
+    } catch (error) {
+      const log = 'wrong on opening the init Gate page';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
   }
 
   async initMexcPage() {
-    this.MexcPage?.close();
-    this.MexcPage = await this.browserService.browser.newPage();
-    await this.MexcPage.setViewport({ width: 1200, height: 700 });
+    try {
+      this.MexcPage?.close();
+      this.MexcPage = await this.browserService.browser.newPage();
+      await this.MexcPage.setViewport({ width: 1200, height: 700 });
+    } catch (error) {
+      const log = 'wrong on opening the init Mexc page';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
   }
 
   async sendSnapshot(res: Response, page: Puppeteer.Page) {
-    const screenshot = await page.screenshot({ encoding: 'base64' });
-    const pic = Buffer.from(screenshot, 'base64');
-    res.setHeader('Content-Type', 'image/jpeg');
-    res.setHeader('Content-Disposition', 'attachment; filename=login-page.jpg');
-    return res.send(pic);
+    try {
+      const screenshot = await page.screenshot({ encoding: 'base64' });
+      const pic = Buffer.from(screenshot, 'base64');
+      res.setHeader('Content-Type', 'image/jpeg');
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename=login-page.jpg',
+      );
+      return res.send(pic);
+    } catch (error) {
+      const log = `cannot take snapshot from: ${page.url()}`;
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+      throw new InternalServerErrorException();
+    }
   }
 
   async brokerSnapshot(res: Response, { broker }: SnapshotDtoParams) {
@@ -202,26 +259,67 @@ export class TradeService {
         else return undefined;
       })
       .filter((crypto) => crypto);
+    if (!whiteList.length) {
+      const findedCryptos = newCryptosList
+        .map((c) => c.cryptoSymbol)
+        .join(', ');
+      const log = `Time limit did not allow to buy cryptos finded: ${findedCryptos}`;
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.info, log },
+      ]);
+      return;
+    }
     // just select first one for trade. based on the employer document
     const buy = await this.buyIsAppropriate(whiteList[0]);
+    const log = `Try to buy ${whiteList[0].cryptoSymbol} crypto in ${buy.broker} broker. Broker message: ${buy.notif}`;
+    this.monitorService.addNewMonitorLog([{ type: MonitorLogType.info, log }]);
     while (true) {
-      const checker = await this.checkSaveTrade(whiteList[0], buy.brocker);
-      if (!checker || checker.state === TradeState.startFailed) break;
+      const checker = await this.checkSaveTrade(whiteList[0], buy.broker);
+      if (!checker) {
+        const log = `Buying ${whiteList[0].cryptoSymbol} in ${buy.broker} broker is successed.`;
+        this.monitorService.addNewMonitorLog([
+          { type: MonitorLogType.success, log },
+        ]);
+        break;
+      }
+      if (checker.state === TradeState.startFailed) {
+        const log = `Buying ${whiteList[0].cryptoSymbol} in ${buy.broker} broker was failed.`;
+        this.monitorService.addNewMonitorLog([
+          { type: MonitorLogType.error, log },
+        ]);
+        break;
+      }
     }
   }
 
-  private timeAppropriateFromNow(requestEnd: Date) {
-    return requestEnd.getTime() - Date.now() < this.maximumRequstTime;
+  private timeAppropriateFromNow(requestEnd?: Date) {
+    return requestEnd?.getTime() - Date.now() < this.maximumRequstTime;
   }
 
   private async buyIsAppropriate({ cryptoSymbol, requestEnd }: FinderDocument) {
     const existOnGateIoBuy = await this.GateIoCheckCryptoExist(cryptoSymbol);
-    if (existOnGateIoBuy && this.timeAppropriateFromNow(requestEnd))
-      return { notif: await this.GateIoBuyCrypto(), brocker: TradeBroker.gate };
+    if (existOnGateIoBuy && this.timeAppropriateFromNow(requestEnd)) {
+      let notif: string | undefined;
+      const broker = TradeBroker.gate;
+      try {
+        notif = await this.GateIoBuyCrypto();
+        return { notif, broker };
+      } catch (error) {
+        return { notif: 'buying process had wrong', broker };
+      }
+    }
 
     const existOnMexcBuy = await this.MexcCheckCryptoExist(cryptoSymbol);
-    if (existOnMexcBuy && this.timeAppropriateFromNow(requestEnd))
-      return { notif: await this.MexcBuyCrypto(), brocker: TradeBroker.mexc };
+    if (existOnMexcBuy && this.timeAppropriateFromNow(requestEnd)) {
+      let notif: string | undefined;
+      const broker = TradeBroker.mexc;
+      try {
+        notif = await this.MexcBuyCrypto();
+        return { notif, broker };
+      } catch (error) {
+        return { notif: 'buying process had wrong', broker };
+      }
+    }
   }
 
   private async checkSaveTrade(
@@ -233,7 +331,7 @@ export class TradeService {
     let newStartPositionPrice: number;
     let newStartPositionAmount: number;
 
-    const tradeOfPageManagment = await this.checkBrockerCryptos(broker, true);
+    const tradeOfPageManagment = await this.checkBrokerCryptos(broker, true);
     if (tradeOfPageManagment) checkTradeStatus(tradeOfPageManagment);
 
     if (succedFullTradeStart) return;
@@ -242,43 +340,51 @@ export class TradeService {
       cryptoPairSymbol: cryptoPairSymbol,
     });
 
-    if (existTrade && this.timeAppropriateFromNow(crypto.requestEnd))
-      return await existTrade.updateOne(
-        {
-          startPositionsPrice: [
-            ...existTrade.startPositionsPrice,
-            newStartPositionPrice,
-          ],
-          startPositionAmount:
-            existTrade.startPositionAmount + newStartPositionAmount,
-        },
-        { new: true },
-      );
-    else if (!existTrade && this.timeAppropriateFromNow(crypto.requestEnd)) {
-      const trade = await this.tradeModle.create({
-        broker,
-        cryptoPairSymbol,
-        state: TradeState.onTrade,
-        cryptoName: crypto.cryptoName,
-        cryptoSymbol: crypto.cryptoSymbol,
-        startPositionsPrice: [newStartPositionPrice],
-        startPositionAmount: newStartPositionAmount,
-        endPositionsPrice: this.defaultEndPositionsPrice.map((def) => ({
-          tp: def.tp,
-          sl: def.sl,
-          percentOfAmount: def.percentOfAmount,
-        })),
-      });
-      await crypto.updateOne({ trade: trade._id });
-      return trade;
-    } else if (!existTrade && !this.timeAppropriateFromNow(crypto.requestEnd))
-      return await this.tradeModle.create({
-        broker,
-        cryptoPairSymbol,
-        state: TradeState.startFailed,
-        cryptoName: crypto.cryptoName,
-        cryptoSymbol: crypto.cryptoSymbol,
-      });
+    try {
+      if (existTrade && this.timeAppropriateFromNow(crypto.requestEnd))
+        return await existTrade.updateOne(
+          {
+            startPositionsPrice: [
+              ...existTrade.startPositionsPrice,
+              newStartPositionPrice,
+            ],
+            startPositionAmount:
+              existTrade.startPositionAmount + newStartPositionAmount,
+          },
+          { new: true },
+        );
+      else if (!existTrade && this.timeAppropriateFromNow(crypto.requestEnd)) {
+        const trade = await this.tradeModle.create({
+          broker,
+          cryptoPairSymbol,
+          state: TradeState.onTrade,
+          cryptoName: crypto.cryptoName,
+          cryptoSymbol: crypto.cryptoSymbol,
+          startPositionsPrice: [newStartPositionPrice],
+          startPositionAmount: newStartPositionAmount,
+          endPositionsPrice: this.defaultEndPositionsPrice.map((def) => ({
+            tp: def.tp,
+            sl: def.sl,
+            percentOfAmount: def.percentOfAmount,
+          })),
+        });
+        await crypto.updateOne({ trade: trade._id });
+        return trade;
+      } else if (!existTrade && !this.timeAppropriateFromNow(crypto.requestEnd))
+        return await this.tradeModle.create({
+          broker,
+          cryptoPairSymbol,
+          state: TradeState.startFailed,
+          cryptoName: crypto.cryptoName,
+          cryptoSymbol: crypto.cryptoSymbol,
+        });
+    } catch (error) {
+      const log = 'Cannot update or create trade itme in db.';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
 
     function checkTradeStatus({
       tradeList,
@@ -300,6 +406,7 @@ export class TradeService {
     }
   }
 
+  // تا اینجا پیام ها هندل شده
   /** this function check db to recive to target or position and call seller function */
   private async manageCryptos(
     { tradeList }: TradeOfPageManagment | undefined,
@@ -336,7 +443,7 @@ export class TradeService {
             }
           });
           // call sell in borkers and pass sellAmount and update sellAmount and endAmount
-          const sellData = await this.sellBrockerCryptos(
+          const sellData = await this.sellBrokerCryptos(
             broker,
             t.symbol,
             sellAmount,
@@ -358,13 +465,15 @@ export class TradeService {
   }
 
   public async checkCryptosInProccess() {
-    const gatePageManagment = await this.checkBrockerCryptos(TradeBroker.gate);
-    if (gatePageManagment) await this.manageCryptos(gatePageManagment, TradeBroker.gate);
-    const mexcPageManagment = await this.checkBrockerCryptos(TradeBroker.mexc);
-    if (mexcPageManagment) await this.manageCryptos(mexcPageManagment, TradeBroker.mexc);
+    const gatePageManagment = await this.checkBrokerCryptos(TradeBroker.gate);
+    if (gatePageManagment)
+      await this.manageCryptos(gatePageManagment, TradeBroker.gate);
+    const mexcPageManagment = await this.checkBrokerCryptos(TradeBroker.mexc);
+    if (mexcPageManagment)
+      await this.manageCryptos(mexcPageManagment, TradeBroker.mexc);
   }
 
-  private async checkBrockerCryptos(
+  private async checkBrokerCryptos(
     broker: keyof typeof TradeBroker,
     isBusy?: boolean,
   ): Promise<TradeOfPageManagment | undefined> {
@@ -386,7 +495,7 @@ export class TradeService {
     }
   }
 
-  private async sellBrockerCryptos(
+  private async sellBrokerCryptos(
     broker: keyof typeof TradeBroker,
     cryptoSymbol: string,
     sellAmount: number,
