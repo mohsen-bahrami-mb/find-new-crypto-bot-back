@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { Monitor } from './schema/monitor.schema';
 import { MonitorLogDto } from './dto/monitor.dto';
 import { MonitorGateway } from './monitor.gateway';
+import { TelegramBotService } from 'src/telegram-bot/telegram-bot.service';
 
 @Injectable()
 export class MonitorService {
@@ -14,6 +15,7 @@ export class MonitorService {
     @InjectModel(Monitor.name) private MonitorModel: Model<Monitor>,
     @Inject(forwardRef(() => MonitorGateway))
     private monitorGateway: MonitorGateway,
+    private telegramBotService: TelegramBotService,
   ) {
     this.monitorModel = MonitorModel;
   }
@@ -57,5 +59,14 @@ export class MonitorService {
     const insertData = await this.monitorModel.insertMany(maopData);
     const result = insertData.map((d) => d.toObject());
     this.monitorGateway.addTailLogs(result);
+    if (this.telegramBotService.bot)
+      await Promise.all(
+        result.map(
+          async (log) =>
+            await this.telegramBotService.sendMessage(
+              `${log.count} - ${log.type} - ${log.createdAt.toISOString()} \n * ${log.log}`,
+            ),
+        ),
+      );
   }
 }

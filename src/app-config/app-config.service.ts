@@ -27,6 +27,7 @@ export class AppConfigService {
     @InjectModel(Config.name) private ConfigModel: Model<Config>,
     @Inject(forwardRef(() => TelegramBotService))
     private telegramBotService: TelegramBotService,
+    @Inject(forwardRef(() => MonitorService))
     private monitorService: MonitorService,
   ) {
     this.configModel = ConfigModel;

@@ -17,6 +17,7 @@ export class TelegramBotService {
   constructor(
     @Inject(forwardRef(() => AppConfigService))
     private appConfigService: AppConfigService,
+    @Inject(forwardRef(() => MonitorService))
     private monitorService: MonitorService,
   ) {}
 

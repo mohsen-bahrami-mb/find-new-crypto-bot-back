@@ -1,15 +1,17 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { TelegramBotService } from './telegram-bot.service';
 import { TelegramBotController } from './telegram-bot.controller';
 import { AppConfigService } from 'src/app-config/app-config.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Config, ConfigSchema } from 'src/app-config/schema/config.schema';
 
+@Global()
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Config.name, schema: ConfigSchema }]),
   ],
   providers: [TelegramBotService, AppConfigService],
-  controllers: [TelegramBotController]
+  controllers: [TelegramBotController],
+  exports: [TelegramBotService],
 })
 export class TelegramBotModule {}
