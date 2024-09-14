@@ -301,24 +301,16 @@ export class TradeService {
     if (existOnGateIoBuy && this.timeAppropriateFromNow(requestEnd)) {
       let notif: string | undefined;
       const broker = TradeBroker.gate;
-      try {
-        notif = await this.GateIoBuyCrypto();
-        return { notif, broker };
-      } catch (error) {
-        return { notif: 'buying process had wrong', broker };
-      }
+      notif = await this.GateIoBuyCrypto();
+      return { notif, broker };
     }
 
     const existOnMexcBuy = await this.MexcCheckCryptoExist(cryptoSymbol);
     if (existOnMexcBuy && this.timeAppropriateFromNow(requestEnd)) {
       let notif: string | undefined;
       const broker = TradeBroker.mexc;
-      try {
-        notif = await this.MexcBuyCrypto();
-        return { notif, broker };
-      } catch (error) {
-        return { notif: 'buying process had wrong', broker };
-      }
+      notif = await this.MexcBuyCrypto();
+      return { notif, broker };
     }
   }
 
@@ -406,7 +398,6 @@ export class TradeService {
     }
   }
 
-  // تا اینجا پیام ها هندل شده
   /** this function check db to recive to target or position and call seller function */
   private async manageCryptos(
     { tradeList }: TradeOfPageManagment | undefined,
@@ -419,6 +410,7 @@ export class TradeService {
             state: TradeState.onTrade,
             cryptoSymbol: t.symbol,
           });
+          if (!existTrade) return;
           let sellAmount = NaN;
           let state = existTrade.state;
           let endPrice = { index: NaN, value: NaN };
@@ -451,14 +443,23 @@ export class TradeService {
           if (!sellData) return;
           const { sellAmountBroker, endPositionPriceBroker } = sellData;
           sellAmount = sellAmountBroker;
-          await existTrade.updateOne({
-            state,
-            endPositionsPrice: [
-              ...existTrade.endPositionsPrice,
-              endPositionPriceBroker,
-            ],
-            endPositionAmount: (existTrade.endPositionAmount ?? 0) + sellAmount,
-          });
+          try {
+            await existTrade.updateOne({
+              state,
+              endPositionsPrice: [
+                ...existTrade.endPositionsPrice,
+                endPositionPriceBroker,
+              ],
+              endPositionAmount:
+                (existTrade.endPositionAmount ?? 0) + sellAmount,
+            });
+          } catch (error) {
+            const log = 'Cannot update trade state for mange it in db.';
+            this.logger.error(log, error.stack);
+            this.monitorService.addNewMonitorLog([
+              { type: MonitorLogType.error, log },
+            ]);
+          }
         }
       }),
     );
@@ -510,15 +511,18 @@ export class TradeService {
       sellAmountBroker: number;
       endPositionPriceBroker: number;
     } = undefined;
-    if (broker === TradeBroker.gate) {
-      // call sell in broker
-      // return await (async () => {});
+    try {
+      if (broker === TradeBroker.gate) {
+        // call sell in broker
+        // return await (async () => {});
+      }
+      if (broker === TradeBroker.mexc) {
+        // call sell in broker
+        // return await (async () => {});
+      }
+    } finally {
+      return result;
     }
-    if (broker === TradeBroker.mexc) {
-      // call sell in broker
-      // return await (async () => {});
-    }
-    return result;
   }
 
   // gateio trade
@@ -527,50 +531,84 @@ export class TradeService {
     // check cryto exist with usdt
     const trade_symbol = `${cryptoSymbol}_${this.BaseCryptoSymbol}`;
     const rgxPattern = /(.+\/)(.+)$/g;
-    await this.GateIoPage.goto(
-      `${this.LINK_GATEIO_TRADE_PAGE}/${trade_symbol}`,
-    );
+    try {
+      await this.GateIoPage.goto(
+        `${this.LINK_GATEIO_TRADE_PAGE}/${trade_symbol}`,
+      );
+    } catch (error) {
+      const log = `Scraper: Cannot load gate page for (${cryptoSymbol}).`;
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
     const url = this.GateIoPage.url();
     const matchPath = [...url.matchAll(rgxPattern)][0][2];
-    if (trade_symbol === matchPath) return true;
+    if (trade_symbol === matchPath) {
+      const log = `Scraper: Find crypto symbol (${cryptoSymbol}) in Gate.`;
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.info, log },
+      ]);
+      return true;
+    }
+    const log = `Scraper: Cannot find crypto symbol (${cryptoSymbol}) in Gate.`;
+    this.monitorService.addNewMonitorLog([{ type: MonitorLogType.info, log }]);
     return false;
   }
 
   async GateIoUserIsLogin() {
-    if (this.isLoginGateIoPage) return true;
-    const loginBtn = await this.GateIoPage.$('#loginLink');
-    if (loginBtn) return false;
-    this.isLoginGateIoPage = true;
-    return true;
+    try {
+      if (this.isLoginGateIoPage) return true;
+      const loginBtn = await this.GateIoPage.$('#loginLink');
+      if (loginBtn) return false;
+      this.isLoginGateIoPage = true;
+      return true;
+    } catch (error) {
+      const log = 'Scraper: Cannot check user is login in Gate or not!';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+      return false;
+    }
   }
 
   async GateIoBuyCrypto() {
-    const { notifHTMLStr, availAbleMoney } = await this.GateIoPage.evaluate(
-      (percentOfAmount) => {
-        const marketOrderTypeSelector =
-          '.tr-font-medium.trade-mode-list-item span';
-        const availablePrecentageSelector =
-          '.mantine-GateSlider-root.mantine-Slider-root.gui-font-face.mantine-1l1492h input';
-        const buyBtnSelector =
-          '.mantine-UnstyledButton-root.mantine-GateButton-root.mantine-Button-root.gui-font-face.mantine-11d65fe';
-        const notifListSelector = '#noty_toast_layout_container';
-        // change order tab to buy on the moment
-        document.querySelector<HTMLElement>(marketOrderTypeSelector).click();
-        // set perecentage for buy amount of crypto
-        document.querySelector<HTMLInputElement>(
-          availablePrecentageSelector,
-        ).value = (100 * percentOfAmount).toFixed(2);
-        // buy action
-        const availAbleMoney: string = undefined;
-        (document.querySelector(buyBtnSelector) as HTMLElement).click();
-        const notifHTMLStr =
-          document.querySelector(notifListSelector).innerHTML;
-        return { notifHTMLStr, availAbleMoney };
-      },
-      this.percentOfAmount,
-    );
-    this.GateAvailableMoney = Number(availAbleMoney) ?? 0;
-    return notifHTMLStr;
+    try {
+      const { notifHTMLStr, availAbleMoney } = await this.GateIoPage.evaluate(
+        (percentOfAmount) => {
+          const marketOrderTypeSelector =
+            '.tr-font-medium.trade-mode-list-item span';
+          const availablePrecentageSelector =
+            '.mantine-GateSlider-root.mantine-Slider-root.gui-font-face.mantine-1l1492h input';
+          const buyBtnSelector =
+            '.mantine-UnstyledButton-root.mantine-GateButton-root.mantine-Button-root.gui-font-face.mantine-11d65fe';
+          const notifListSelector = '#noty_toast_layout_container';
+          // change order tab to buy on the moment
+          document.querySelector<HTMLElement>(marketOrderTypeSelector).click();
+          // set perecentage for buy amount of crypto
+          document.querySelector<HTMLInputElement>(
+            availablePrecentageSelector,
+          ).value = (100 * percentOfAmount).toFixed(2);
+          // buy action
+          const availAbleMoney: string = undefined;
+          (document.querySelector(buyBtnSelector) as HTMLElement).click();
+          const notifHTMLStr =
+            document.querySelector(notifListSelector).innerHTML;
+          return { notifHTMLStr, availAbleMoney };
+        },
+        this.percentOfAmount,
+      );
+      this.GateAvailableMoney = Number(availAbleMoney) ?? 0;
+      return notifHTMLStr;
+    } catch (error) {
+      const log = 'Scraper: Buying process in Gate had wrong.';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+      return log;
+    }
   }
 
   async GateIoAllWalletCrypto() {}
@@ -578,13 +616,22 @@ export class TradeService {
   async GateIoCloseCryptoPosition() {}
 
   async GateIoLoginPage(res: Response) {
-    const qrCodeSelector = '#loginQRCode canvas';
-    if (!this.browserService.browser) await this.browserService.initBrowser();
-    if (!this.GateIoPage) await this.initGateIoPage();
-    await this.GateIoPage.goto(this.LINK_GATEIO_LOGIN_PAGE);
-    await this.GateIoPage.waitForSelector(qrCodeSelector);
-    // send screenshot for clinet to accept login
-    return this.sendSnapshot(res, this.GateIoPage);
+    try {
+      const qrCodeSelector = '#loginQRCode canvas';
+      if (!this.browserService.browser) await this.browserService.initBrowser();
+      if (!this.GateIoPage) await this.initGateIoPage();
+      await this.GateIoPage.goto(this.LINK_GATEIO_LOGIN_PAGE);
+      await this.GateIoPage.waitForSelector(qrCodeSelector);
+    } catch (error) {
+      const log = 'Scraper: Cannot get Gate login page.';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    } finally {
+      // send screenshot for clinet to accept login
+      return this.sendSnapshot(res, this.GateIoPage);
+    }
   }
 
   // mexc trade
@@ -592,92 +639,142 @@ export class TradeService {
     if (!(await this.MexcUserIsLogin())) return;
     // check cryto exist with usdt;
     const trade_symbol = `${cryptoSymbol}_${this.BaseCryptoSymbol}`;
-    await this.MexcPage.goto(`${this.LINK_MEXC_TRADE_PAGE}/${trade_symbol}`);
-    const noCrypto = await this.MexcPage.evaluate(() => {
-      const closeBtnPopUpSelector = 'button.ant-modal-close';
-      const noCryptoSelector = '.error_tip__cFQf4';
-      const noCrypto = document.querySelector<HTMLElement | undefined | null>(
-        noCryptoSelector,
-      );
-      const closeBtnPopUp = document.querySelector<
-        HTMLElement | undefined | null
-      >(closeBtnPopUpSelector);
-      closeBtnPopUp?.click();
-      return noCrypto;
-    });
-    if (!noCrypto) return true;
-    return false;
+    try {
+      await this.MexcPage.goto(`${this.LINK_MEXC_TRADE_PAGE}/${trade_symbol}`);
+      const noCrypto = await this.MexcPage.evaluate(() => {
+        const closeBtnPopUpSelector = 'button.ant-modal-close';
+        const noCryptoSelector = '.error_tip__cFQf4';
+        const noCrypto = document.querySelector<HTMLElement | undefined | null>(
+          noCryptoSelector,
+        );
+        const closeBtnPopUp = document.querySelector<
+          HTMLElement | undefined | null
+        >(closeBtnPopUpSelector);
+        closeBtnPopUp?.click();
+        return noCrypto;
+      });
+      if (!noCrypto) {
+        const log = `Scraper: Find crypto symbol (${cryptoSymbol}) in Mexc.`;
+        this.monitorService.addNewMonitorLog([
+          { type: MonitorLogType.info, log },
+        ]);
+        return true;
+      }
+      const log = `Scraper: Cannot find crypto symbol (${cryptoSymbol}) in Mexc.`;
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.info, log },
+      ]);
+      return false;
+    } catch (error) {
+      const log = `Scraper: Cannot load Mexc page for (${cryptoSymbol}).`;
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
   }
 
   async MexcUserIsLogin() {
-    if (this.isLoginMexcPage) return true;
-    const loginBtnSelector = '.header_registerBtn__fsUiv.header_authBtn__Gch60';
-    const loginBtn = await this.MexcPage.$(loginBtnSelector);
-    const url = this.MexcPage.url();
-    if (url !== this.LINK_MEXC_LOGIN_PAGE && loginBtn) {
-      return false;
-    } else if (url !== this.LINK_MEXC_LOGIN_PAGE && !loginBtn) {
-      this.isLoginMexcPage = true;
-      return true;
-    } else {
+    try {
+      if (this.isLoginMexcPage) return true;
+      const loginBtnSelector =
+        '.header_registerBtn__fsUiv.header_authBtn__Gch60';
+      const loginBtn = await this.MexcPage.$(loginBtnSelector);
+      const url = this.MexcPage.url();
+      if (url !== this.LINK_MEXC_LOGIN_PAGE && loginBtn) {
+        return false;
+      } else if (url !== this.LINK_MEXC_LOGIN_PAGE && !loginBtn) {
+        this.isLoginMexcPage = true;
+        return true;
+      } else {
+        return undefined;
+      }
+    } catch (error) {
+      const log = 'Scraper: Cannot check user is login in Mexc or not!';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
       return undefined;
     }
   }
 
   async MexcBuyCrypto() {
-    const availableMoney = await this.MexcPage.evaluate(() => {
-      const marketOrderTypeSelector =
-        '.actions_textNowarp__3QcjB.actions_mode__nRnKJ';
-      const availableMoneySelector = '.actions_itemContent__qOMXm';
-      const unitMoneySelector = '.actions_unitsSpace__i8C7j';
-      const amountMoneySelector = '.actions_valueContent__8bSMo';
-      ([...document.querySelectorAll(marketOrderTypeSelector)] as HTMLElement[])
-        .filter((el) => el.innerText.toLowerCase() === 'market')[0]
-        ?.click();
-      // get available money
-      const availableMoney = [
-        ...document.querySelectorAll(availableMoneySelector),
-      ]
-        .filter(
-          (el) =>
-            el.querySelector(unitMoneySelector).textContent.toLowerCase() ===
-            'usdt',
-        )[0]
-        .querySelector(amountMoneySelector).textContent;
-      return availableMoney;
-    });
-    // set amount money to buy crypto
-    this.MexcAvailableMoney = Number(availableMoney) ?? 0;
-    await this.MexcPage.type(
-      'input[data-testid=spot-trade-buyTotal]',
-      (this.MexcAvailableMoney * this.percentOfAmount).toFixed(2),
-    );
-    // buy action and get notif
-    const buyBtnSelector = 'button[data-testid=spot-trade-orderBuyBtn]';
-    const notifSelector = '.ant-message';
-    const notifHTMLStr = await this.MexcPage.evaluate(
-      (buyBtnSelector, notifSelector) => {
-        document.querySelector<HTMLElement>(buyBtnSelector).click();
-        const notifHTMLStr =
-          document.querySelector<HTMLElement>(notifSelector).textContent;
-        return notifHTMLStr;
-      },
-      buyBtnSelector,
-      notifSelector,
-    );
-    return notifHTMLStr;
+    try {
+      const availableMoney = await this.MexcPage.evaluate(() => {
+        const marketOrderTypeSelector =
+          '.actions_textNowarp__3QcjB.actions_mode__nRnKJ';
+        const availableMoneySelector = '.actions_itemContent__qOMXm';
+        const unitMoneySelector = '.actions_unitsSpace__i8C7j';
+        const amountMoneySelector = '.actions_valueContent__8bSMo';
+        (
+          [
+            ...document.querySelectorAll(marketOrderTypeSelector),
+          ] as HTMLElement[]
+        )
+          .filter((el) => el.innerText.toLowerCase() === 'market')[0]
+          ?.click();
+        // get available money
+        const availableMoney = [
+          ...document.querySelectorAll(availableMoneySelector),
+        ]
+          .filter(
+            (el) =>
+              el.querySelector(unitMoneySelector).textContent.toLowerCase() ===
+              'usdt',
+          )[0]
+          .querySelector(amountMoneySelector).textContent;
+        return availableMoney;
+      });
+      // set amount money to buy crypto
+      this.MexcAvailableMoney = Number(availableMoney) ?? 0;
+      await this.MexcPage.type(
+        'input[data-testid=spot-trade-buyTotal]',
+        (this.MexcAvailableMoney * this.percentOfAmount).toFixed(2),
+      );
+      // buy action and get notif
+      const buyBtnSelector = 'button[data-testid=spot-trade-orderBuyBtn]';
+      const notifSelector = '.ant-message';
+      const notifHTMLStr = await this.MexcPage.evaluate(
+        (buyBtnSelector, notifSelector) => {
+          document.querySelector<HTMLElement>(buyBtnSelector).click();
+          const notifHTMLStr =
+            document.querySelector<HTMLElement>(notifSelector).textContent;
+          return notifHTMLStr;
+        },
+        buyBtnSelector,
+        notifSelector,
+      );
+      return notifHTMLStr;
+    } catch (error) {
+      const log = 'Scraper: Buying process in Mexc had wrong.';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+      return log;
+    }
   }
 
   async MexcLoginPage(res: Response) {
-    const qrHoverToShowSeloctor = '.Form_qrcodeTxt__8TIo0';
-    const qrCodeSelector = '.QrcodeLogin_qrcode__IGJHy';
-    if (!this.browserService.browser) await this.browserService.initBrowser();
-    if (!this.MexcPage) await this.initMexcPage();
-    await this.MexcPage.goto(this.LINK_MEXC_LOGIN_PAGE);
-    await this.MexcPage.hover(qrHoverToShowSeloctor);
-    await this.MexcPage.waitForSelector(qrCodeSelector);
-    // send screenshot for clinet to accept login
-    return this.sendSnapshot(res, this.MexcPage);
+    try {
+      const qrHoverToShowSeloctor = '.Form_qrcodeTxt__8TIo0';
+      const qrCodeSelector = '.QrcodeLogin_qrcode__IGJHy';
+      if (!this.browserService.browser) await this.browserService.initBrowser();
+      if (!this.MexcPage) await this.initMexcPage();
+      await this.MexcPage.goto(this.LINK_MEXC_LOGIN_PAGE);
+      await this.MexcPage.hover(qrHoverToShowSeloctor);
+      await this.MexcPage.waitForSelector(qrCodeSelector);
+    } catch (error) {
+      const log = 'Scraper: Cannot get Mexc login page.';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    } finally {
+      // send screenshot for clinet to accept login
+      return this.sendSnapshot(res, this.MexcPage);
+    }
   }
 
   async MexcAllWalletCrypto() {}
