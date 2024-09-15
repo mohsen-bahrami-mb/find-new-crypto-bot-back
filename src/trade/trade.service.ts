@@ -32,6 +32,7 @@ import { MonitorLogType } from 'src/enums/monitor.enum';
 import { InjectQueue } from '@nestjs/bull';
 import { queue, queueJob } from 'src/enums/redis.enum';
 import { Queue } from 'bull';
+import { Spot } from 'mexc-api-sdk';
 
 @Injectable()
 export class TradeService {
@@ -51,7 +52,7 @@ export class TradeService {
   MexcAvailableMoney: number;
   defaultEndPositionsPrice: EndPositionsPriceDto[] = [];
   isCheckBrokerCryptosBusy: boolean = false;
-
+  clientSpot: Spot;
   tradeModle: Model<Trade>;
   defaultTradeModle: Model<DefaultTrade>;
 
@@ -65,6 +66,8 @@ export class TradeService {
   ) {
     this.tradeModle = TradeModle;
     this.defaultTradeModle = DefaultTradeModle;
+
+    this.clientSpot = new Spot('<API_KEY>', '<SECRET_KEY>');
   }
 
   async onApplicationBootstrap() {
@@ -241,7 +244,8 @@ export class TradeService {
       return this.GateIoLoginPage(res);
     }
     if (broker === 'mexc') {
-      if (await this.MexcUserIsLogin()) return this.sendSnapshot(res, this.MexcPage);
+      if (await this.MexcUserIsLogin())
+        return this.sendSnapshot(res, this.MexcPage);
       return this.MexcLoginPage(res);
     }
     throw new BadRequestException('Invalid Param', {
@@ -818,4 +822,52 @@ export class TradeService {
   async MexcAllWalletCrypto() {}
   async MexcCryptoState() {}
   async MexcCloseCryptoPosition() {}
+
+  /** mexc api
+   * mexc api
+   * mexc api
+   * mexc api
+   */
+
+  // گرفتن لیست دارایی ها
+  async getAssets() {
+    const response = await this.clientSpot.accountInfo();
+    return response.data.balances;
+  }
+
+  // اطلاعات موجودی USDT
+  async getUsdtBalance() {
+    const response = await this.clientSpot.accountInfo();
+    const usdtBalance = response.data.balances.find(
+      (asset) => asset.asset === 'USDT',
+    );
+    return usdtBalance;
+  }
+
+  // چک کردن نماد
+  async checkSymbol(symbol: string) {
+    const response = await this.clientSpot.accountInfo();
+    const symbolExists = response.data.balances.some(
+      (asset) => asset.asset === symbol,
+    );
+    return symbolExists;
+  }
+
+  // معامله خرید
+  async buySymbol(symbol: string, price: string, quantity: string) {
+    const response = await this.clientSpot.newOrder(symbol, 'BUY', 'LIMIT', {
+      price,
+      quantity,
+    });
+    return response.data;
+  }
+
+  // معامله فروش
+  async sellSymbol(symbol: string, price: string, quantity: string) {
+    const response = await this.clientSpot.newOrder(symbol, 'SELL', 'LIMIT', {
+      price,
+      quantity,
+    });
+    return response.data;
+  }
 }
