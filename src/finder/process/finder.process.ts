@@ -13,7 +13,7 @@ export class FinderProcess {
   @Process(queueJob.checkNews)
   async tryit(job: Job<unknown>) {
     if (!this.timeAvaliable || this.timeAvaliable < Date.now()) {
-      // await this.finderService.checkTargetNews();
+      await this.finderService.checkTargetNews();
       this.timeAvaliable = Date.now() + 3000;
     }
   }

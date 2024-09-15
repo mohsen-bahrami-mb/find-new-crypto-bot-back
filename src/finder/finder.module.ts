@@ -26,6 +26,7 @@ import { TelegramBotService } from 'src/telegram-bot/telegram-bot.service';
       { name: Config.name, schema: ConfigSchema },
     ]),
     BullModule.registerQueue({ name: queue.finder }),
+    BullModule.registerQueue({ name: queue.trade }),
   ],
   providers: [
     FinderService,

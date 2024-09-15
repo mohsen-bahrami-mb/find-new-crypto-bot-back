@@ -1,8 +1,5 @@
 // موارد باقی مانده:
 
-// بخاطر اینکه کال استک جاوااسکرپت پر نشه صدا زدن این فانکشن ها باید توی صف باشه و توش دیتا ست بشه
-// دیتایی که به فانکشن خرید داده میشه همون مواردیه که از فایندر پیدا شده. و دیتای چکر ایدی دیتابیس ترید میشه
-
 // فانکشن چکر روی صفحات گیت و مکسی
 // فانکشن چکر در مواقع خرید باید از طرف بقیه موارد این فانکشن بن بشه
 // فانکشن سلر بایید برای گیت و مکسی زده بشه
@@ -32,6 +29,9 @@ import {
 } from 'src/types/trade.type';
 import { MonitorService } from 'src/monitor/monitor.service';
 import { MonitorLogType } from 'src/enums/monitor.enum';
+import { InjectQueue } from '@nestjs/bull';
+import { queue, queueJob } from 'src/enums/redis.enum';
+import { Queue } from 'bull';
 
 @Injectable()
 export class TradeService {
@@ -61,6 +61,7 @@ export class TradeService {
     @InjectModel(Trade.name) private TradeModle: Model<Trade>,
     @InjectModel(DefaultTrade.name)
     private DefaultTradeModle: Model<DefaultTrade>,
+    @InjectQueue(queue.trade) private tradeQueue: Queue,
   ) {
     this.tradeModle = TradeModle;
     this.defaultTradeModle = DefaultTradeModle;
@@ -273,23 +274,40 @@ export class TradeService {
     const buy = await this.buyIsAppropriate(whiteList[0]);
     const log = `Try to buy ${whiteList[0].cryptoSymbol} crypto in ${buy.broker} broker. Broker message: ${buy.notif}`;
     this.monitorService.addNewMonitorLog([{ type: MonitorLogType.info, log }]);
-    while (true) {
-      const checker = await this.checkSaveTrade(whiteList[0], buy.broker);
-      if (!checker) {
-        const log = `Buying ${whiteList[0].cryptoSymbol} in ${buy.broker} broker is successed.`;
-        this.monitorService.addNewMonitorLog([
-          { type: MonitorLogType.success, log },
-        ]);
-        break;
-      }
-      if (checker.state === TradeState.startFailed) {
-        const log = `Buying ${whiteList[0].cryptoSymbol} in ${buy.broker} broker was failed.`;
-        this.monitorService.addNewMonitorLog([
-          { type: MonitorLogType.error, log },
-        ]);
-        break;
-      }
+    // call check buy it in job
+    this.tradeQueue.add(
+      queueJob.buyChecking,
+      { crypto: whiteList[0].toObject(), broker: buy.broker },
+      { removeOnComplete: true },
+    );
+  }
+
+  /** recursive function with cron job or directly call */
+  public async buyChecking(
+    crypto: FinderDocument,
+    broker: keyof typeof TradeBroker,
+  ) {
+    const checker = await this.checkSaveTrade(crypto, broker);
+    if (!checker) {
+      const log = `Buying ${crypto.cryptoSymbol} in ${broker} broker is successed.`;
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.success, log },
+      ]);
+      return;
     }
+    if (checker.state === TradeState.startFailed) {
+      const log = `Buying ${crypto.cryptoSymbol} in ${broker} broker was failed.`;
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+      return;
+    }
+    // call recursive if buying is not completed
+    this.tradeQueue.add(
+      queueJob.buyChecking,
+      { crypto, broker },
+      { removeOnComplete: true },
+    );
   }
 
   private timeAppropriateFromNow(requestEnd?: Date) {
@@ -466,12 +484,16 @@ export class TradeService {
   }
 
   public async checkCryptosInProccess() {
-    const gatePageManagment = await this.checkBrokerCryptos(TradeBroker.gate);
-    if (gatePageManagment)
-      await this.manageCryptos(gatePageManagment, TradeBroker.gate);
-    const mexcPageManagment = await this.checkBrokerCryptos(TradeBroker.mexc);
-    if (mexcPageManagment)
-      await this.manageCryptos(mexcPageManagment, TradeBroker.mexc);
+    if (this.isLoginGateIoPage) {
+      const gatePageManagment = await this.checkBrokerCryptos(TradeBroker.gate);
+      if (gatePageManagment)
+        await this.manageCryptos(gatePageManagment, TradeBroker.gate);
+    }
+    if (this.isLoginMexcPage) {
+      const mexcPageManagment = await this.checkBrokerCryptos(TradeBroker.mexc);
+      if (mexcPageManagment)
+        await this.manageCryptos(mexcPageManagment, TradeBroker.mexc);
+    }
   }
 
   private async checkBrokerCryptos(
@@ -527,7 +549,7 @@ export class TradeService {
 
   // gateio trade
   async GateIoCheckCryptoExist(cryptoSymbol: string) {
-    if (!(await this.GateIoUserIsLogin())) return;
+    if (!this.isLoginGateIoPage) return;
     // check cryto exist with usdt
     const trade_symbol = `${cryptoSymbol}_${this.BaseCryptoSymbol}`;
     const rgxPattern = /(.+\/)(.+)$/g;
@@ -558,7 +580,6 @@ export class TradeService {
 
   async GateIoUserIsLogin() {
     try {
-      if (this.isLoginGateIoPage) return true;
       const loginBtn = await this.GateIoPage.$('#loginLink');
       if (loginBtn) return false;
       this.isLoginGateIoPage = true;
@@ -636,7 +657,7 @@ export class TradeService {
 
   // mexc trade
   async MexcCheckCryptoExist(cryptoSymbol: string) {
-    if (!(await this.MexcUserIsLogin())) return;
+    if (!this.isLoginMexcPage) return;
     // check cryto exist with usdt;
     const trade_symbol = `${cryptoSymbol}_${this.BaseCryptoSymbol}`;
     try {
@@ -676,7 +697,6 @@ export class TradeService {
 
   async MexcUserIsLogin() {
     try {
-      if (this.isLoginMexcPage) return true;
       const loginBtnSelector =
         '.header_registerBtn__fsUiv.header_authBtn__Gch60';
       const loginBtn = await this.MexcPage.$(loginBtnSelector);

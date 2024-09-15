@@ -2,7 +2,7 @@ import { InjectQueue } from '@nestjs/bull';
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { Queue } from 'bull';
-import { queue } from 'src/enums/redis.enum';
+import { queue, queueJob } from 'src/enums/redis.enum';
 import { random } from 'src/utils/random';
 import { TradeService } from '../trade.service';
 
@@ -14,13 +14,31 @@ export class TradeTask {
     @InjectQueue(queue.trade) private tradeQueue: Queue,
     private tradeService: TradeService,
   ) {}
-  @Cron('*/6 * * * * *')
-  async handleCron() {
+  @Cron('*/10 * * * * *')
+  async checkCryptos() {
     setTimeout(
       () => {
-        this.tradeService.checkCryptosInProccess();
+        this.tradeQueue.add(
+          queueJob.checkTradesInProccess,
+          {},
+          { removeOnComplete: true },
+        );
       },
       random(800, 1300),
+    );
+  }
+
+  @Cron('* * * * *')
+  async checkLogins() {
+    setTimeout(
+      () => {
+        this.tradeQueue.add(
+          queueJob.checkLogins,
+          {},
+          { removeOnComplete: true },
+        );
+      },
+      random(3000, 10000),
     );
   }
 }
