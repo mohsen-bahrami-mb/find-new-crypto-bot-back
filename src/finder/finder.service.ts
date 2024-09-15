@@ -178,4 +178,57 @@ export class FinderService {
       }
     }
   }
+  async testStart(binanceNews: BinanceNews[]) {
+    // test function - start
+    const newList = binanceNews;
+    const rgxPattern = /Binance Will List (.+) \((.+)\).* with .+/gi;
+
+    const newCryptoWillList = newList
+      .map((item) => {
+        const matched = item?.newsTitle
+          ? [...item.newsTitle.matchAll(rgxPattern)]?.[0]
+          : [];
+        if (matched) {
+          return {
+            ...item,
+            cryptoName: matched?.[1],
+            cryptoSymbol: matched?.[2],
+          };
+        } else return undefined;
+      })
+      .filter((item) => item);
+    const newCryptos = await this.isNewOne(newCryptoWillList);
+    if (newCryptos.length) {
+      try {
+        const result = (await this.finderModel.insertMany(
+          newCryptos,
+        )) as FinderDocument[];
+        const monitorlogs = newCryptos.map((crypto) => {
+          const cryptoName = `${crypto.cryptoName} (${crypto.cryptoSymbol})`;
+          const findTime =
+            (crypto.requestEnd.getTime() - crypto.requestStart.getTime()) /
+            1000;
+          return {
+            log: ` find crypto ${cryptoName} - find time: ${findTime.toFixed(2)}s`,
+            type: MonitorLogType.info,
+          };
+        });
+        this.monitorService.addNewMonitorLog(monitorlogs);
+        const startTime = new Date(this.appConfigService.config.finderStartAt);
+        const endTime = new Date(this.appConfigService.config.finderEndAt);
+        const nowTime = new Date();
+        if (nowTime > startTime && nowTime < endTime)
+          await this.tradeService.newCryptos(result);
+        return 'call test function successfully';
+      } catch (error) {
+        const log =
+          'cannot insert new crypot finded in db, therefore cannot call trade service';
+        this.logger.error(log, error.stack);
+        this.monitorService.addNewMonitorLog([
+          { type: MonitorLogType.error, log: log },
+        ]);
+      }
+    }
+    // test function - end
+  }
 }
