@@ -579,9 +579,17 @@ export class TradeService {
   }
 
   async GateIoUserIsLogin() {
+    const loginSelector = '#loginLink';
     try {
-      const loginBtn = await this.GateIoPage.$('#loginLink');
-      if (loginBtn) return false;
+      if (!this.browserService.browser) await this.browserService.initBrowser();
+      if (!this.GateIoPage) await this.initGateIoPage();
+      await this.GateIoPage.bringToFront();
+      const loginBtn = await this.GateIoPage.$(loginSelector);
+      const url = this.GateIoPage.url();
+      if (!url.includes('gate.io') || loginBtn) {
+        this.isLoginGateIoPage = false;
+        return false;
+      }
       this.isLoginGateIoPage = true;
       return true;
     } catch (error) {
@@ -596,6 +604,7 @@ export class TradeService {
 
   async GateIoBuyCrypto() {
     try {
+      await this.GateIoPage.bringToFront();
       const { notifHTMLStr, availAbleMoney } = await this.GateIoPage.evaluate(
         (percentOfAmount) => {
           const marketOrderTypeSelector =
@@ -632,10 +641,6 @@ export class TradeService {
     }
   }
 
-  async GateIoAllWalletCrypto() {}
-  async GateIoCryptoState() {}
-  async GateIoCloseCryptoPosition() {}
-
   async GateIoLoginPage(res: Response) {
     try {
       const qrCodeSelector = '#loginQRCode canvas';
@@ -656,6 +661,10 @@ export class TradeService {
     }
   }
 
+  async GateIoAllWalletCrypto() {}
+  async GateIoCryptoState() {}
+  async GateIoCloseCryptoPosition() {}
+
   // mexc trade
   async MexcCheckCryptoExist(cryptoSymbol: string) {
     if (!this.isLoginMexcPage) return;
@@ -663,6 +672,7 @@ export class TradeService {
     const trade_symbol = `${cryptoSymbol}_${this.BaseCryptoSymbol}`;
     try {
       await this.MexcPage.goto(`${this.LINK_MEXC_TRADE_PAGE}/${trade_symbol}`);
+      await this.MexcPage.bringToFront();
       const noCrypto = await this.MexcPage.evaluate(() => {
         const closeBtnPopUpSelector = 'button.ant-modal-close';
         const noCryptoSelector = '.error_tip__cFQf4';
@@ -697,18 +707,23 @@ export class TradeService {
   }
 
   async MexcUserIsLogin() {
+    const loginBtnSelector = '.header_registerBtn__fsUiv.header_authBtn__Gch60';
     try {
-      const loginBtnSelector =
-        '.header_registerBtn__fsUiv.header_authBtn__Gch60';
+      if (!this.browserService.browser) await this.browserService.initBrowser();
+      if (!this.MexcPage) await this.initMexcPage();
+      await this.MexcPage.bringToFront();
       const loginBtn = await this.MexcPage.$(loginBtnSelector);
       const url = this.MexcPage.url();
-      if (url !== this.LINK_MEXC_LOGIN_PAGE && loginBtn) {
+      if (
+        !url.includes('mexc.com') ||
+        (url !== this.LINK_MEXC_LOGIN_PAGE && loginBtn)
+      ) {
+        this.isLoginMexcPage = false;
         return false;
-      } else if (url !== this.LINK_MEXC_LOGIN_PAGE && !loginBtn) {
+      }
+      if (url !== this.LINK_MEXC_LOGIN_PAGE && !loginBtn) {
         this.isLoginMexcPage = true;
         return true;
-      } else {
-        return undefined;
       }
     } catch (error) {
       const log = 'Scraper: Cannot check user is login in Mexc or not!';
@@ -722,6 +737,7 @@ export class TradeService {
 
   async MexcBuyCrypto() {
     try {
+      await this.MexcPage.bringToFront();
       const availableMoney = await this.MexcPage.evaluate(() => {
         const marketOrderTypeSelector =
           '.actions_textNowarp__3QcjB.actions_mode__nRnKJ';
