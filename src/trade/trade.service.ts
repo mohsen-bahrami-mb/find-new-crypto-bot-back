@@ -642,6 +642,7 @@ export class TradeService {
       if (!this.browserService.browser) await this.browserService.initBrowser();
       if (!this.GateIoPage) await this.initGateIoPage();
       await this.GateIoPage.goto(this.LINK_GATEIO_LOGIN_PAGE);
+      await this.GateIoPage.bringToFront();
       await this.GateIoPage.waitForSelector(qrCodeSelector);
     } catch (error) {
       const log = 'Scraper: Cannot get Gate login page.';
@@ -783,6 +784,7 @@ export class TradeService {
       if (!this.browserService.browser) await this.browserService.initBrowser();
       if (!this.MexcPage) await this.initMexcPage();
       await this.MexcPage.goto(this.LINK_MEXC_LOGIN_PAGE);
+      await this.MexcPage.bringToFront();
       await this.MexcPage.hover(qrHoverToShowSeloctor);
       await this.MexcPage.waitForSelector(qrCodeSelector);
     } catch (error) {
