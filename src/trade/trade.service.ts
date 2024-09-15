@@ -236,12 +236,12 @@ export class TradeService {
 
   async brokerSnapshot(res: Response, { broker }: SnapshotDtoParams) {
     if (broker === 'gate') {
-      if (this.isLoginGateIoPage)
+      if (await this.GateIoUserIsLogin())
         return this.sendSnapshot(res, this.GateIoPage);
       return this.GateIoLoginPage(res);
     }
     if (broker === 'mexc') {
-      if (this.isLoginMexcPage) return this.sendSnapshot(res, this.MexcPage);
+      if (await this.MexcUserIsLogin()) return this.sendSnapshot(res, this.MexcPage);
       return this.MexcLoginPage(res);
     }
     throw new BadRequestException('Invalid Param', {

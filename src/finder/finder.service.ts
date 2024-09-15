@@ -13,7 +13,8 @@ import { AppConfigService } from 'src/app-config/app-config.service';
 @Injectable()
 export class FinderService {
   logger = new Logger(FinderService.name);
-  LINK_BINANCE_NEW_CRYPTO_LIST = process.env.LINK_BINANCE_NEW_CRYPTO_LIST;
+  LINK_BINANCE_NEW_CRYPTO_LIST =
+    'https://www.binance.com/en/support/announcement/new-cryptocurrency-listing?c=48&navId=48&hl=en';
 
   finderModel: Model<Finder>;
 
