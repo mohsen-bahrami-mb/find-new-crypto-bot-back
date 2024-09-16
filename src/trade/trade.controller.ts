@@ -22,10 +22,12 @@ import { AuthGuard } from 'src/auth/auth.guard';
 export class TradeController {
   constructor(readonly tradeService: TradeService) {}
 
-  @UseGuards(AuthGuard)
   @Get()
-  test() {
-    return this.tradeService.GateIoCheckCryptoExist('BTC');
+  test(@Body() body: any) {
+    // return this.tradeService.MexcApiWallet();
+    // return this.tradeService.MexcApiTickerPrice(body.data);
+    // return this.tradeService.MexcApiBuyCrypto(body.data, body.value);
+    // return this.tradeService.GateIoCheckCryptoExist('BTC');
   }
 
   @UseGuards(AuthGuard)

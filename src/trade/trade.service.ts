@@ -32,7 +32,7 @@ import { MonitorLogType } from 'src/enums/monitor.enum';
 import { InjectQueue } from '@nestjs/bull';
 import { queue, queueJob } from 'src/enums/redis.enum';
 import { Queue } from 'bull';
-import { Spot } from 'mexc-api-sdk';
+import { Spot, Trade as mTrade } from 'mexc-api-sdk';
 
 @Injectable()
 export class TradeService {
@@ -66,8 +66,10 @@ export class TradeService {
   ) {
     this.tradeModle = TradeModle;
     this.defaultTradeModle = DefaultTradeModle;
-
-    this.clientSpot = new Spot('<API_KEY>', '<SECRET_KEY>');
+    this.clientSpot = new Spot(
+      'mx0vglPywHsXxBHR4M',
+      'd64511c397824f4aa8792b0d37303da2',
+    );
   }
 
   async onApplicationBootstrap() {
@@ -829,45 +831,77 @@ export class TradeService {
    * mexc api
    */
 
-  // گرفتن لیست دارایی ها
-  async getAssets() {
-    const response = await this.clientSpot.accountInfo();
-    return response.data.balances;
+  async MexcApiWallet() {
+    try {
+      const response = this.clientSpot.accountInfo();
+      return response?.balances ?? {};
+    } catch (error) {
+      const log = 'MEXC API: Cannot get acount wallet data!';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
   }
 
-  // اطلاعات موجودی USDT
-  async getUsdtBalance() {
-    const response = await this.clientSpot.accountInfo();
-    const usdtBalance = response.data.balances.find(
-      (asset) => asset.asset === 'USDT',
-    );
-    return usdtBalance;
+  async MexcApiCryptoBalance(cryptoName: string = 'USDT') {
+    try {
+      const response = this.clientSpot.accountInfo();
+      const cryptoBalance = response?.balances?.find(
+        (asset) => asset.asset === cryptoName,
+      );
+      return cryptoBalance ?? {};
+    } catch (error) {
+      const log = `MEXC API: Cannot get ${cryptoName} balance wallet!`;
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
   }
 
-  // چک کردن نماد
-  async checkSymbol(symbol: string) {
-    const response = await this.clientSpot.accountInfo();
-    const symbolExists = response.data.balances.some(
-      (asset) => asset.asset === symbol,
-    );
-    return symbolExists;
+  async MexcApiBuyCrypto(symbol: string, quoteOrderQty: string) {
+    try {
+      const response = this.clientSpot.newOrder(symbol, 'BUY', 'MARKET', {
+        quoteOrderQty,
+        newOrderRespType: 'JSON',
+      });
+      return response;
+    } catch (error) {
+      const log = `MEXC API: Cannot buy ${symbol} with this amount ${quoteOrderQty}!`;
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
   }
 
-  // معامله خرید
-  async buySymbol(symbol: string, price: string, quantity: string) {
-    const response = await this.clientSpot.newOrder(symbol, 'BUY', 'LIMIT', {
-      price,
-      quantity,
-    });
-    return response.data;
+  async MexcApiSellCrypto(symbol: string, quantity: string) {
+    try {
+      const response = this.clientSpot.newOrder(symbol, 'SELL', 'MARKET', {
+        quantity,
+        newOrderRespType: 'JSON',
+      });
+      return response;
+    } catch (error) {
+      const log = `MEXC API: Cannot sell ${symbol} with this amount ${quantity}!`;
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
   }
 
-  // معامله فروش
-  async sellSymbol(symbol: string, price: string, quantity: string) {
-    const response = await this.clientSpot.newOrder(symbol, 'SELL', 'LIMIT', {
-      price,
-      quantity,
-    });
-    return response.data;
+  async MexcApiTickerPrice(symbol: string) {
+    try {
+      const response = this.clientSpot.tickerPrice(symbol);
+      return response;
+    } catch (error) {
+      const log = `MEXC API: Cannot get ${symbol} book!`;
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
   }
 }
