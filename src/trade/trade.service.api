@@ -52,6 +52,7 @@ export class TradeService {
   MexcAvailableMoney: number;
   defaultEndPositionsPrice: EndPositionsPriceDto[] = [];
   isCheckBrokerCryptosBusy: boolean = false;
+  clientSpot: Spot;
   tradeModle: Model<Trade>;
   defaultTradeModle: Model<DefaultTrade>;
 
@@ -65,6 +66,10 @@ export class TradeService {
   ) {
     this.tradeModle = TradeModle;
     this.defaultTradeModle = DefaultTradeModle;
+    this.clientSpot = new Spot(
+      'mx0vglPywHsXxBHR4M',
+      'd64511c397824f4aa8792b0d37303da2',
+    );
   }
 
   async onApplicationBootstrap() {
@@ -819,4 +824,84 @@ export class TradeService {
   async MexcAllWalletCrypto() {}
   async MexcCryptoState() {}
   async MexcCloseCryptoPosition() {}
+
+  /** mexc api
+   * mexc api
+   * mexc api
+   * mexc api
+   */
+
+  async MexcApiWallet() {
+    try {
+      const response = this.clientSpot.accountInfo();
+      return response?.balances ?? {};
+    } catch (error) {
+      const log = 'MEXC API: Cannot get acount wallet data!';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
+  }
+
+  async MexcApiCryptoBalance(cryptoName: string = 'USDT') {
+    try {
+      const response = this.clientSpot.accountInfo();
+      const cryptoBalance = response?.balances?.find(
+        (asset) => asset.asset === cryptoName,
+      );
+      return cryptoBalance ?? {};
+    } catch (error) {
+      const log = `MEXC API: Cannot get ${cryptoName} balance wallet!`;
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
+  }
+
+  async MexcApiBuyCrypto(symbol: string, quoteOrderQty: string) {
+    try {
+      const response = this.clientSpot.newOrder(symbol, 'BUY', 'MARKET', {
+        quoteOrderQty,
+        newOrderRespType: 'JSON',
+      });
+      return response;
+    } catch (error) {
+      const log = `MEXC API: Cannot buy ${symbol} with this amount ${quoteOrderQty}!`;
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
+  }
+
+  async MexcApiSellCrypto(symbol: string, quantity: string) {
+    try {
+      const response = this.clientSpot.newOrder(symbol, 'SELL', 'MARKET', {
+        quantity,
+        newOrderRespType: 'JSON',
+      });
+      return response;
+    } catch (error) {
+      const log = `MEXC API: Cannot sell ${symbol} with this amount ${quantity}!`;
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
+  }
+
+  async MexcApiTickerPrice(symbol: string) {
+    try {
+      const response = this.clientSpot.tickerPrice(symbol);
+      return response;
+    } catch (error) {
+      const log = `MEXC API: Cannot get ${symbol} book!`;
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
+  }
 }
