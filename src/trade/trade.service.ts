@@ -69,7 +69,7 @@ export class TradeService {
 
   async onApplicationBootstrap() {
     if (this.browserService.browser) {
-      await this.initGateIoPage();
+      // await this.initGateIoPage(); // deactive gate website
       await this.initMexcPage();
     }
     const defaultTrader = await this.defaultTradeModle.findOne({});
@@ -235,12 +235,13 @@ export class TradeService {
   }
 
   async brokerSnapshot(res: Response, { broker }: SnapshotDtoParams) {
-    if (broker === 'gate') {
-      if (await this.GateIoUserIsLogin())
-        return this.sendSnapshot(res, this.GateIoPage);
-      return this.GateIoLoginPage(res);
-    }
-    if (broker === 'mexc') {
+    // deactive gate website
+    // if (broker === TradeBroker.gate) {
+    //   if (await this.GateIoUserIsLogin())
+    //     return this.sendSnapshot(res, this.GateIoPage);
+    //   return this.GateIoLoginPage(res);
+    // }
+    if (broker === TradeBroker.mexc) {
       if (await this.MexcUserIsLogin())
         return this.sendSnapshot(res, this.MexcPage);
       return this.MexcLoginPage(res);
@@ -316,13 +317,14 @@ export class TradeService {
   }
 
   private async buyIsAppropriate({ cryptoSymbol, requestEnd }: FinderDocument) {
-    const existOnGateIoBuy = await this.GateIoCheckCryptoExist(cryptoSymbol);
-    if (existOnGateIoBuy && this.timeAppropriateFromNow(requestEnd)) {
-      let notif: string | undefined;
-      const broker = TradeBroker.gate;
-      notif = await this.GateIoBuyCrypto();
-      return { notif, broker };
-    }
+    // deactive gate website
+    // const existOnGateIoBuy = await this.GateIoCheckCryptoExist(cryptoSymbol);
+    // if (existOnGateIoBuy && this.timeAppropriateFromNow(requestEnd)) {
+    //   let notif: string | undefined;
+    //   const broker = TradeBroker.gate;
+    //   notif = await this.GateIoBuyCrypto();
+    //   return { notif, broker };
+    // }
 
     const existOnMexcBuy = await this.MexcCheckCryptoExist(cryptoSymbol);
     if (existOnMexcBuy && this.timeAppropriateFromNow(requestEnd)) {
@@ -485,11 +487,12 @@ export class TradeService {
   }
 
   public async checkCryptosInProccess() {
-    if (this.isLoginGateIoPage) {
-      const gatePageManagment = await this.checkBrokerCryptos(TradeBroker.gate);
-      if (gatePageManagment)
-        await this.manageCryptos(gatePageManagment, TradeBroker.gate);
-    }
+    // deactive gate website
+    // if (this.isLoginGateIoPage) {
+    //   const gatePageManagment = await this.checkBrokerCryptos(TradeBroker.gate);
+    //   if (gatePageManagment)
+    //     await this.manageCryptos(gatePageManagment, TradeBroker.gate);
+    // }
     if (this.isLoginMexcPage) {
       const mexcPageManagment = await this.checkBrokerCryptos(TradeBroker.mexc);
       if (mexcPageManagment)
@@ -505,10 +508,11 @@ export class TradeService {
     if (isBusy) this.isCheckBrokerCryptosBusy = true;
     let result: TradeOfPageManagment = undefined;
     try {
-      if (broker === TradeBroker.gate) {
-        // call check in broker
-        // return await (async () => {});
-      }
+      // deactive gate website
+      // if (broker === TradeBroker.gate) {
+      //   // call check in broker
+      //   // return await (async () => {});
+      // }
       if (broker === TradeBroker.mexc) {
         // call check in broker
         // return await (async () => {});
@@ -535,10 +539,11 @@ export class TradeService {
       endPositionPriceBroker: number;
     } = undefined;
     try {
-      if (broker === TradeBroker.gate) {
-        // call sell in broker
-        // return await (async () => {});
-      }
+      // deactive gate website
+      // if (broker === TradeBroker.gate) {
+      //   // call sell in broker
+      //   // return await (async () => {});
+      // }
       if (broker === TradeBroker.mexc) {
         // call sell in broker
         // return await (async () => {});
