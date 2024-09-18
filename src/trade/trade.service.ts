@@ -274,9 +274,10 @@ export class TradeService {
     }
     // just select first one for trade. based on the employer document
     const buy = await this.buyIsAppropriate(whiteList[0]);
-    const log = `Try to buy ${whiteList[0].cryptoSymbol} crypto in ${buy.broker} broker. Broker message: ${buy.notif}`;
+    const log = `Try to buy ${whiteList[0].cryptoSymbol} crypto in ${buy?.broker || 'No'} broker. Broker message: ${buy?.notif || ''}`;
     this.monitorService.addNewMonitorLog([{ type: MonitorLogType.info, log }]);
     // call check buy it in job
+    if (!buy) return;
     this.tradeQueue.add(
       queueJob.buyChecking,
       { crypto: whiteList[0].toObject(), broker: buy.broker },

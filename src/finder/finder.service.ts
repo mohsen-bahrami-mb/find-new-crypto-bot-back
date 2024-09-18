@@ -164,8 +164,9 @@ export class FinderService {
           };
         });
         this.monitorService.addNewMonitorLog(monitorlogs);
-        const startTime = new Date(this.appConfigService.config.finderStartAt);
-        const endTime = new Date(this.appConfigService.config.finderEndAt);
+        const config = await this.appConfigService.getConfig(true);
+        const startTime = new Date(config.finderStartAt);
+        const endTime = new Date(config.finderEndAt);
         const nowTime = new Date();
         if (nowTime > startTime && nowTime < endTime)
           await this.tradeService.newCryptos(result);
@@ -215,8 +216,9 @@ export class FinderService {
           };
         });
         this.monitorService.addNewMonitorLog(monitorlogs);
-        const startTime = new Date(this.appConfigService.config.finderStartAt);
-        const endTime = new Date(this.appConfigService.config.finderEndAt);
+        const config = await this.appConfigService.getConfig(true);
+        const startTime = new Date(config.finderStartAt);
+        const endTime = new Date(config.finderEndAt);
         const nowTime = new Date();
         if (nowTime > startTime && nowTime < endTime)
           await this.tradeService.newCryptos(result);

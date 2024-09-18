@@ -35,12 +35,11 @@ export class TelegramBotService {
 
   public async sendMessage(msg: string) {
     try {
+      const config = await this.appConfigService.getConfig(true);
       await Promise.all(
-        this.appConfigService.config.telegramValidChatIds.map(
-          async (chatId) => {
-            await this.bot.sendMessage(chatId, msg);
-          },
-        ),
+        config.telegramValidChatIds.map(async (chatId) => {
+          await this.bot.sendMessage(chatId, msg);
+        }),
       );
     } catch (error) {
       const log = 'send text messsage in telegram bot is faield';
@@ -55,12 +54,11 @@ export class TelegramBotService {
     filename: string,
   ) {
     try {
+      const config = await this.appConfigService.getConfig(true);
       await Promise.all(
-        this.appConfigService.config.telegramValidChatIds.map(
-          async (chatId) => {
-            await this.bot.sendDocument(chatId, doc, {}, { filename });
-          },
-        ),
+        config.telegramValidChatIds.map(async (chatId) => {
+          await this.bot.sendDocument(chatId, doc, {}, { filename });
+        }),
       );
     } catch (error) {
       const log = 'send documents in telegram bot is faield';
@@ -86,7 +84,7 @@ export class TelegramBotService {
 
   private onStart() {
     this.bot.onText(/\/start/i, async (msg) => {
-      const config = this.appConfigService.config;
+      const config = await this.appConfigService.getConfig(true);
       const chatId = msg.chat.id;
       if (config.telegramValidChatIds.includes(chatId))
         this.bot.sendMessage(chatId, 'you are connected to server...');
@@ -96,7 +94,7 @@ export class TelegramBotService {
 
   private onCheckPassword() {
     this.bot.on('message', async (msg) => {
-      const config = this.appConfigService.config;
+      const config = await this.appConfigService.getConfig(true);
       const chatId = msg.chat.id;
       const text = msg.text;
       const isValidPassword = bcrypt.compareSync(text, config.password);
