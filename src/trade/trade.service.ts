@@ -718,20 +718,26 @@ export class TradeService {
     try {
       if (!this.browserService.browser) await this.browserService.initBrowser();
       if (!this.MexcPage) await this.initMexcPage();
+      if (!this.LINK_MEXC_TRADE_PAGE.includes(this.MexcPage.url()))
+        await this.MexcPage.goto(`${this.LINK_MEXC_TRADE_PAGE}/MX_USDT`);
       await this.MexcPage.bringToFront();
-      const loginBtn = await this.MexcPage.$(loginBtnSelector);
+      const loginBtn = await this.MexcPage.waitForSelector(loginBtnSelector, {
+        timeout: 5000,
+      });
       const url = this.MexcPage.url();
       if (
         !url.includes('mexc.com') ||
         (url !== this.LINK_MEXC_LOGIN_PAGE && loginBtn)
       ) {
         this.isLoginMexcPage = false;
+        await this.MexcPage.goto(this.LINK_MEXC_LOGIN_PAGE);
         return false;
       }
       if (url !== this.LINK_MEXC_LOGIN_PAGE && !loginBtn) {
         this.isLoginMexcPage = true;
         return true;
       }
+      await this.MexcPage.goto(this.LINK_MEXC_LOGIN_PAGE);
     } catch (error) {
       const log = 'Scraper: Cannot check user is login in Mexc or not!';
       this.logger.error(log, error.stack);

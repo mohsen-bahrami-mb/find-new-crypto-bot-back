@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get } from '@nestjs/common';
 import { FinderService } from './finder.service';
 import { AuthGuard } from 'src/auth/auth.guard';
 
@@ -6,8 +6,7 @@ import { AuthGuard } from 'src/auth/auth.guard';
 export class FinderController {
   constructor(private readonly finderService: FinderService) {}
 
-  @UseGuards(AuthGuard)
-  @Post('testStart')
+  @Get('testStart')
   async testStart(@Body() newsTitle: string[]) {
     const result = newsTitle?.map((t) => ({
       requestStart: new Date(),
