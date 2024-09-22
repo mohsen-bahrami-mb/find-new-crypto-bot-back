@@ -734,7 +734,7 @@ export class TradeService {
       let loginBtn: Puppeteer.ElementHandle<Element> | null = null;
       try {
         loginBtn = await this.MexcPage.waitForSelector(loginBtnSelector, {
-          timeout: 5000,
+          timeout: 10000,
         });
       } catch {}
       const url = this.MexcPage.url();
@@ -800,7 +800,7 @@ export class TradeService {
       const notifSelector = '.ant-message';
       const notifHTMLStr = await this.MexcPage.evaluate(
         (buyBtnSelector, notifSelector) => {
-          // document.querySelector<HTMLElement>(buyBtnSelector).click();
+          document.querySelector<HTMLElement>(buyBtnSelector).click();
           const notifHTMLStr =
             document.querySelector<HTMLElement>(notifSelector)?.textContent;
           return notifHTMLStr;
