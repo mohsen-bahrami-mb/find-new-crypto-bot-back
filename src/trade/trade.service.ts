@@ -254,16 +254,22 @@ export class TradeService {
 
   // logic
   async newCryptos(newCryptosList: FinderDocument[]) {
-    console.log(2, newCryptosList);
     const whiteList = newCryptosList
       .map((crypto) => {
-        const startTime = crypto.requestStart.getTime();
-        const endTime = crypto.requestEnd.getTime();
-        if (startTime - endTime < this.maximumRequstTime) return crypto;
+        const startTime = new Date(crypto.requestStart).getTime();
+        const endTime = new Date(crypto.requestEnd).getTime();
+        if (startTime - endTime < this.maximumRequstTime)
+          return Object.assign(crypto, {
+            ...crypto,
+            createdAt: new Date(crypto.createdAt),
+            updatedAt: new Date(crypto.updatedAt),
+            newsDate: new Date(crypto.newsDate),
+            requestStart: new Date(crypto.requestStart),
+            requestEnd: new Date(crypto.requestEnd),
+          });
         else return undefined;
       })
       .filter((crypto) => crypto);
-    console.log(3, whiteList);
     if (!whiteList.length) {
       const findedCryptos = newCryptosList
         .map((c) => c.cryptoSymbol)
@@ -274,18 +280,16 @@ export class TradeService {
       ]);
       return;
     }
-    console.log(4);
     // just select first one for trade. based on the employer document
     this.isCheckBrokerCryptosBusy = true;
     const buy = await this.buyIsAppropriate(whiteList[0]);
-    console.log(44, buy);
     const log = `Try to buy ${whiteList[0].cryptoSymbol} crypto in ${buy?.broker || 'No'} broker. Broker message: ${buy?.notif || ''}`;
     this.monitorService.addNewMonitorLog([{ type: MonitorLogType.info, log }]);
     // call check buy it in job
     if (buy)
       this.tradeQueue.add(
         queueJob.buyChecking,
-        { crypto: whiteList[0].toObject(), broker: buy.broker },
+        { crypto: whiteList[0], broker: buy.broker },
         { removeOnComplete: true },
       );
     this.isCheckBrokerCryptosBusy = false;
@@ -333,13 +337,10 @@ export class TradeService {
     //   return { notif, broker };
     // }
 
-    console.log(5);
     const existOnMexcBuy = await this.MexcCheckCryptoExist(cryptoSymbol);
-    console.log(55);
     if (existOnMexcBuy && this.timeAppropriateFromNow(requestEnd)) {
       let notif: string | undefined;
       const broker = TradeBroker.mexc;
-      console.log(11);
       notif = await this.MexcBuyCrypto();
       return { notif, broker };
     }
@@ -686,7 +687,6 @@ export class TradeService {
     if (!this.isLoginMexcPage) return;
     // check cryto exist with usdt;
     const trade_symbol = `${cryptoSymbol}_${this.BaseCryptoSymbol}`;
-    console.log(6, trade_symbol);
     try {
       await this.MexcPage.goto(`${this.LINK_MEXC_TRADE_PAGE}/${trade_symbol}`);
       await this.MexcPage.bringToFront();
@@ -699,24 +699,20 @@ export class TradeService {
         const closeBtnPopUp = document.querySelector<
           HTMLElement | undefined | null
         >(closeBtnPopUpSelector);
-        console.log(7, closeBtnPopUp);
         closeBtnPopUp?.click();
         return noCrypto;
       });
-      console.log(8, noCrypto);
       if (!noCrypto) {
         const log = `Scraper: Find crypto symbol (${cryptoSymbol}) in Mexc.`;
         this.monitorService.addNewMonitorLog([
           { type: MonitorLogType.info, log },
         ]);
-        console.log(9);
         return true;
       }
       const log = `Scraper: Cannot find crypto symbol (${cryptoSymbol}) in Mexc.`;
       this.monitorService.addNewMonitorLog([
         { type: MonitorLogType.info, log },
       ]);
-      console.log(10);
       return false;
     } catch (error) {
       const log = `Scraper: Cannot load Mexc page for (${cryptoSymbol}).`;
@@ -805,14 +801,13 @@ export class TradeService {
       const notifHTMLStr = await this.MexcPage.evaluate(
         (buyBtnSelector, notifSelector) => {
           // document.querySelector<HTMLElement>(buyBtnSelector).click();
-          // const notifHTMLStr =
-          document.querySelector<HTMLElement>(notifSelector)?.textContent;
+          const notifHTMLStr =
+            document.querySelector<HTMLElement>(notifSelector)?.textContent;
           return notifHTMLStr;
         },
         buyBtnSelector,
         notifSelector,
       );
-      console.log('end', this.MexcAvailableMoney);
       return notifHTMLStr;
     } catch (error) {
       const log = 'Scraper: Buying process in Mexc had wrong.';

@@ -9,6 +9,9 @@ import { BrowserService } from 'src/browser/browser.service';
 import { MonitorService } from 'src/monitor/monitor.service';
 import { MonitorLogType } from 'src/enums/monitor.enum';
 import { AppConfigService } from 'src/app-config/app-config.service';
+import { Queue } from 'bull';
+import { queue, queueJob } from 'src/enums/redis.enum';
+import { InjectQueue } from '@nestjs/bull';
 
 @Injectable()
 export class FinderService {
@@ -26,6 +29,7 @@ export class FinderService {
     private tradeService: TradeService,
     private browserService: BrowserService,
     private monitorService: MonitorService,
+    @InjectQueue(queue.trade) private tradeQueue: Queue,
   ) {
     this.finderModel = FinderModel;
   }
@@ -220,9 +224,12 @@ export class FinderService {
         const startTime = new Date(config.finderStartAt);
         const endTime = new Date(config.finderEndAt);
         const nowTime = new Date();
-        console.log(1, result);
         if (nowTime > startTime && nowTime < endTime)
-          await this.tradeService.newCryptos(result);
+          this.tradeQueue.add(
+            queueJob.newCryptos,
+            { result },
+            { removeOnComplete: true },
+          );
         return 'call test function successfully';
       } catch (error) {
         const log =

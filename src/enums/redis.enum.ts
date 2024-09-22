@@ -8,4 +8,5 @@ export enum queueJob {
   checkLogins = 'checkLogins',
   checkTradesInProccess = 'checkTradesInProccess',
   buyChecking = 'buyChecking',
+  newCryptos = 'newCryptos',
 }
