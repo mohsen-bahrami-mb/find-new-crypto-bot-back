@@ -220,6 +220,7 @@ export class FinderService {
         const startTime = new Date(config.finderStartAt);
         const endTime = new Date(config.finderEndAt);
         const nowTime = new Date();
+        console.log(1, result);
         if (nowTime > startTime && nowTime < endTime)
           await this.tradeService.newCryptos(result);
         return 'call test function successfully';
