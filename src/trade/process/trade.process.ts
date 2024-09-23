@@ -33,4 +33,9 @@ export class TradeProcess {
       this.timeAvaliable = Date.now() + 3000;
     }
   }
+
+  @Process(queueJob.newCryptos)
+  async newCryptos(job: Job<{ result: FinderDocument[] }>) {
+    this.tradeService.newCryptos(job.data.result);
+  }
 }
