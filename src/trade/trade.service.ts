@@ -98,6 +98,46 @@ export class TradeService {
     }
   }
 
+  async initGateIoPage() {
+    try {
+      this.GateIoPage?.close();
+      this.GateIoPage = await this.browserService.browser.newPage();
+      await this.GateIoPage.setViewport({ width: 1200, height: 700 });
+    } catch (error) {
+      const log = 'wrong on opening the init Gate page';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
+  }
+  async initMexcPage() {
+    try {
+      this.MexcPage?.close();
+      this.MexcPage = await this.browserService.browser.newPage();
+      await this.MexcPage.setViewport({ width: 1200, height: 700 });
+    } catch (error) {
+      const log = 'wrong on opening the init Mexc page';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
+  }
+  async initMexcTradePage() {
+    try {
+      this.MexcManageTradePage?.close();
+      this.MexcManageTradePage = await this.browserService.browser.newPage();
+      await this.MexcManageTradePage.setViewport({ width: 1200, height: 700 });
+    } catch (error) {
+      const log = 'wrong on opening the init Mexc trade page';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
+  }
+
   // api
   async getManager() {
     if (
@@ -182,47 +222,6 @@ export class TradeService {
     } catch (error) {
       const log =
         'cannot update trade statment manager: ' + trade._id.toString();
-      this.logger.error(log, error.stack);
-      this.monitorService.addNewMonitorLog([
-        { type: MonitorLogType.error, log },
-      ]);
-    }
-  }
-
-  async initGateIoPage() {
-    try {
-      this.GateIoPage?.close();
-      this.GateIoPage = await this.browserService.browser.newPage();
-      await this.GateIoPage.setViewport({ width: 1200, height: 700 });
-    } catch (error) {
-      const log = 'wrong on opening the init Gate page';
-      this.logger.error(log, error.stack);
-      this.monitorService.addNewMonitorLog([
-        { type: MonitorLogType.error, log },
-      ]);
-    }
-  }
-
-  async initMexcPage() {
-    try {
-      this.MexcPage?.close();
-      this.MexcPage = await this.browserService.browser.newPage();
-      await this.MexcPage.setViewport({ width: 1200, height: 700 });
-    } catch (error) {
-      const log = 'wrong on opening the init Mexc page';
-      this.logger.error(log, error.stack);
-      this.monitorService.addNewMonitorLog([
-        { type: MonitorLogType.error, log },
-      ]);
-    }
-  }
-  async initMexcTradePage() {
-    try {
-      this.MexcManageTradePage?.close();
-      this.MexcManageTradePage = await this.browserService.browser.newPage();
-      await this.MexcManageTradePage.setViewport({ width: 1200, height: 700 });
-    } catch (error) {
-      const log = 'wrong on opening the init Mexc trade page';
       this.logger.error(log, error.stack);
       this.monitorService.addNewMonitorLog([
         { type: MonitorLogType.error, log },
