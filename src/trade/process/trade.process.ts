@@ -23,13 +23,13 @@ export class TradeProcess {
   async buyChecking(
     job: Job<{ crypto: FinderDocument; broker: keyof typeof TradeBroker }>,
   ) {
-    this.tradeService.buyChecking(job.data.crypto, job.data.broker);
+    // this.tradeService.buyChecking(job.data.crypto, job.data.broker);
   }
 
   @Process(queueJob.checkTradesInProccess)
   async checkTradesInProccess(job: Job<unknown>) {
     if (!this.timeAvaliable || this.timeAvaliable < Date.now()) {
-      this.tradeService.checkCryptosInProccess();
+      // this.tradeService.checkCryptosInProccess();
       this.timeAvaliable = Date.now() + 3000;
     }
   }

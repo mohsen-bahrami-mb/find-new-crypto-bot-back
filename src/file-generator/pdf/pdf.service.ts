@@ -65,7 +65,7 @@ export class PdfService {
             width: 500,
             height: 10,
           },
-          endPositionAmount: {
+          positionAmount: {
             type: 'text',
             position: { x: 20, y: 80 },
             width: 500,
@@ -117,7 +117,7 @@ export class PdfService {
         broker: `Broker:                                  ${tradeData.broker}`,
         startPositionsPrice: `Start Positions Price:         ${tradeData.startPositionsPrice.join(' AND ')}`,
         startPositionAmount: `Start Position Amount:      ${tradeData.startPositionAmount}`,
-        endPositionAmount: `End Position Amount:        ${tradeData.endPositionAmount}`,
+        positionAmount: `Position Amount:        ${tradeData.positionAmount}`,
         reportTime: `Report Time:                        ${new Date().toISOString()} (ISO TIME)`,
         startFinding: `Start Finding Time:             ${finderData.requestStart.toISOString()} (ISO TIME)`,
         endFinding: `End Finding Time:               ${finderData.requestEnd.toISOString()} (ISO TIME)`,

@@ -25,6 +25,7 @@ import { TradeBroker, TradeState } from 'src/enums/trade.enum';
 import { FinderDocument } from 'src/finder/schema/finder.schema';
 import {
   ChosenTradeOfPageManagment,
+  OpenPositionRow,
   TradeOfPageManagment,
 } from 'src/types/trade.type';
 import { MonitorService } from 'src/monitor/monitor.service';
@@ -44,6 +45,7 @@ export class TradeService {
   BaseCryptoSymbol = 'USDT';
   GateIoPage: Puppeteer.Page;
   MexcPage: Puppeteer.Page;
+  MexcManageTradePage: Puppeteer.Page;
   isLoginGateIoPage = false;
   isLoginMexcPage = false;
   /** in miliseconds */ maximumRequstTime = 20000;
@@ -71,6 +73,7 @@ export class TradeService {
     if (this.browserService.browser) {
       // await this.initGateIoPage(); // deactive gate website
       await this.initMexcPage();
+      await this.initMexcTradePage();
     }
     const defaultTrader = await this.defaultTradeModle.findOne({});
     if (defaultTrader) {
@@ -207,6 +210,19 @@ export class TradeService {
       await this.MexcPage.setViewport({ width: 1200, height: 700 });
     } catch (error) {
       const log = 'wrong on opening the init Mexc page';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
+  }
+  async initMexcTradePage() {
+    try {
+      this.MexcManageTradePage?.close();
+      this.MexcManageTradePage = await this.browserService.browser.newPage();
+      await this.MexcManageTradePage.setViewport({ width: 1200, height: 700 });
+    } catch (error) {
+      const log = 'wrong on opening the init Mexc trade page';
       this.logger.error(log, error.stack);
       this.monitorService.addNewMonitorLog([
         { type: MonitorLogType.error, log },
@@ -466,15 +482,14 @@ export class TradeService {
               endPrice = { index, value: t.price };
             }
           });
-          // call sell in borkers and pass sellAmount and update sellAmount and endAmount
+          // call sell in borkers and pass sellAmount and update `positionAmount` (remainAmountBroker)
           const sellData = await this.sellBrokerCryptos(
             broker,
             t.symbol,
             sellAmount,
           );
           if (!sellData) return;
-          const { sellAmountBroker, endPositionPriceBroker } = sellData;
-          sellAmount = sellAmountBroker;
+          const { remainAmountBroker, endPositionPriceBroker } = sellData;
           try {
             await existTrade.updateOne({
               state,
@@ -482,8 +497,7 @@ export class TradeService {
                 ...existTrade.endPositionsPrice,
                 endPositionPriceBroker,
               ],
-              endPositionAmount:
-                (existTrade.endPositionAmount ?? 0) + sellAmount,
+              positionAmount: remainAmountBroker,
             });
           } catch (error) {
             const log = 'Cannot update trade state for mange it in db.';
@@ -540,13 +554,13 @@ export class TradeService {
     sellAmount: number,
   ): Promise<
     | {
-        sellAmountBroker: number;
+        remainAmountBroker: number;
         endPositionPriceBroker: number;
       }
     | undefined
   > {
     let result: {
-      sellAmountBroker: number;
+      remainAmountBroker: number;
       endPositionPriceBroker: number;
     } = undefined;
     try {
@@ -842,7 +856,44 @@ export class TradeService {
     }
   }
 
-  async MexcAllWalletCrypto() {}
+  async MexcAllWalletCrypto() {
+    if (!this.isLoginMexcPage) return;
+    const openPositionsSelector =
+      '.orders_tab__F1mi5.mxc-short-tab.orders_statistic__34QOw';
+    const formTableRowsSelector = '.ant-form.ant-form-horizontal';
+    try {
+      if (!this.MexcManageTradePage) await this.initMexcTradePage();
+      await this.MexcManageTradePage.goto(
+        `${this.LINK_MEXC_TRADE_PAGE}/MX_USDT`,
+      );
+      await this.MexcManageTradePage.waitForSelector(formTableRowsSelector);
+      const tableRows = await this.MexcManageTradePage.evaluate(
+        (openPositionsSelector, formTableRowsSelector) => {
+          document.querySelector<HTMLElement>(openPositionsSelector)?.click();
+          const tableRows: OpenPositionRow[] = [
+            ...document.querySelectorAll(`${formTableRowsSelector} > div`),
+          ].map((el) =>
+            [...el.querySelectorAll<HTMLElement>(':scope > div')].map(
+              (childEl) => childEl.innerText,
+            ),
+          ) as OpenPositionRow[];
+          return tableRows;
+        },
+        openPositionsSelector,
+        formTableRowsSelector,
+      );
+      return tableRows;
+    } catch (error) {
+      const log = 'Cannot load mexc mange trade page.';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
+  }
+  async reloadMexcAllWalletCrypto() {
+    // just reload page with job
+  }
   async MexcCryptoState() {}
   async MexcCloseCryptoPosition() {}
 }

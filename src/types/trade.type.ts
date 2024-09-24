@@ -16,3 +16,26 @@ export interface ChosenTradeOfPageManagment {
   price: number;
   amount: number;
 }
+
+/** Array of these values
+ * @type {[
+ * `Crypto`,
+ * `Position Qty.`,
+ * `Frozen`,
+ * `Avg. Buy Price (USDT)`,
+ * `Last Price (USDT)`,
+ * `Est. Cost (USDT)`,
+ * `Est. Value (USDT)`,
+ * `Est. Unrealized PNL (USDT)`
+ * ]}
+ */
+export type OpenPositionRow = [
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+];

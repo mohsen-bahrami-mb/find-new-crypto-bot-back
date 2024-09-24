@@ -41,8 +41,8 @@ export class Trade {
   @Prop({ type: Number, required: true, default: 0 })
   startPositionAmount: number;
 
-  @Prop({ type: Number, default: 0 })
-  endPositionAmount: number;
+  @Prop({ type: Number, required: true })
+  positionAmount: number;
 
   @Prop({ type: Date })
   createdAt: Date;

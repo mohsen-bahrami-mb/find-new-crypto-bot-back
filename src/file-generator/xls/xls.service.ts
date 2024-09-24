@@ -20,7 +20,7 @@ export class XlsService {
       ['Broker', tradeData.broker],
       ['Start Positions Price', ...tradeData.startPositionsPrice],
       ['Start Position Amount', tradeData.startPositionAmount],
-      ['End Position Amount', tradeData.endPositionAmount],
+      ['Position Amount', tradeData.positionAmount],
       ['Report Time', `${new Date().toISOString()} (ISO TIME)`],
       [
         'Start Finding Time',
