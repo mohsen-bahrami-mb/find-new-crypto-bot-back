@@ -1,3 +1,5 @@
+import { TradeState } from "src/enums/trade.enum";
+
 export interface EndPositionsPrice {
   tp: number;
   sl: number;
@@ -12,7 +14,7 @@ export interface TradeOfPageManagment {
 
 export interface ChosenTradeOfPageManagment {
   symbol: string;
-  state: string;
+  state: TradeState;
   price: number;
   amount: number;
 }
@@ -28,7 +30,7 @@ export interface ChosenTradeOfPageManagment {
  * `Est. Value (USDT)`,
  * `Est. Unrealized PNL (USDT)`
  * ]}
- */
+*/
 export type OpenPositionRow = [
   string,
   string,

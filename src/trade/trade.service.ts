@@ -538,8 +538,8 @@ export class TradeService {
       //   // return await (async () => {});
       // }
       if (broker === TradeBroker.mexc) {
-        // call check in broker
-        // return await (async () => {});
+        const walletList = await this.MexcAllWalletCrypto();
+        result = walletList;
       }
     } finally {
       this.isCheckBrokerCryptosBusy = false;
@@ -855,39 +855,72 @@ export class TradeService {
     }
   }
 
-  async MexcAllWalletCrypto() {
+  async MexcAllWalletCrypto(): Promise<TradeOfPageManagment | undefined> {
     if (!this.isLoginMexcPage) return;
     const openPositionsSelector =
       '.orders_tab__F1mi5.mxc-short-tab.orders_statistic__34QOw';
     const formTableRowsSelector = '.ant-form.ant-form-horizontal';
+    const availableMoneySelector = '.actions_itemContent__qOMXm';
+    const unitMoneySelector = '.actions_unitsSpace__i8C7j';
+    const amountMoneySelector = '.actions_valueContent__8bSMo';
     try {
       if (!this.MexcManageTradePage) await this.initMexcTradePage();
       await this.MexcManageTradePage.goto(
         `${this.LINK_MEXC_TRADE_PAGE}/MX_USDT`,
       );
       await this.MexcManageTradePage.waitForSelector(formTableRowsSelector);
-      const tableRows = await this.MexcManageTradePage.evaluate(
-        (openPositionsSelector, formTableRowsSelector) => {
-          document.querySelector<HTMLElement>(openPositionsSelector)?.click();
-          const tableRows: OpenPositionRow[] = [
-            ...document.querySelectorAll(`${formTableRowsSelector} > div`),
-          ].map((el) =>
-            [...el.querySelectorAll<HTMLElement>(':scope > div')].map(
-              (childEl) => childEl.innerText,
-            ),
-          ) as OpenPositionRow[];
-          return tableRows;
-        },
-        openPositionsSelector,
-        formTableRowsSelector,
-      );
-      return tableRows;
+      const { tableRows, acountAmount } =
+        await this.MexcManageTradePage.evaluate(
+          (
+            openPositionsSelector,
+            formTableRowsSelector,
+            availableMoneySelector,
+            unitMoneySelector,
+            amountMoneySelector,
+          ) => {
+            document.querySelector<HTMLElement>(openPositionsSelector)?.click();
+            const tableRows: OpenPositionRow[] = [
+              ...document.querySelectorAll(`${formTableRowsSelector} > div`),
+            ].map((el) =>
+              [...el.querySelectorAll<HTMLElement>(':scope > div')].map(
+                (childEl) => childEl.innerText,
+              ),
+            ) as OpenPositionRow[];
+            // get available money
+            const availableMoney: number | string = [
+              ...document.querySelectorAll(availableMoneySelector),
+            ]
+              .filter(
+                (el) =>
+                  el
+                    .querySelector(unitMoneySelector)
+                    .textContent.toLowerCase() === 'usdt',
+              )[0]
+              .querySelector(amountMoneySelector).textContent;
+            const acountAmount = Number(availableMoney);
+            return { tableRows, acountAmount };
+          },
+          openPositionsSelector,
+          formTableRowsSelector,
+          availableMoneySelector,
+          unitMoneySelector,
+          amountMoneySelector,
+        );
+
+      const tradeList = tableRows.map((tr) => ({
+        symbol: tr[0],
+        state: TradeState.onTrade,
+        price: Number(tr[4]),
+        amount: Number(tr[1]),
+      }));
+      return { tradeList, acountAmount };
     } catch (error) {
       const log = 'Cannot load mexc mange trade page.';
       this.logger.error(log, error.stack);
       this.monitorService.addNewMonitorLog([
         { type: MonitorLogType.error, log },
       ]);
+      return undefined;
     }
   }
   async reloadMexcAllWalletCrypto() {
