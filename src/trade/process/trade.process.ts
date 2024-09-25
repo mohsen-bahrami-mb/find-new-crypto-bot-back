@@ -14,7 +14,7 @@ export class TradeProcess {
 
   @Process(queueJob.checkLogins)
   async checkLogins(job: Job<unknown>) {
-    this.tradeService.MexcUserIsLogin();
+    // this.tradeService.MexcUserIsLogin();
     // deactive gate website
     // this.tradeService.GateIoUserIsLogin();
   }

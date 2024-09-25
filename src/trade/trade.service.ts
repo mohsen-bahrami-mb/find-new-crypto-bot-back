@@ -296,7 +296,6 @@ export class TradeService {
       return;
     }
     // just select first one for trade. based on the employer document
-    this.isCheckBrokerCryptosBusy = true;
     const buy = await this.buyIsAppropriate(whiteList[0]);
     const log = `Try to buy ${whiteList[0].cryptoSymbol} crypto in ${buy?.broker || 'No'} broker. Broker message: ${buy?.notif || ''}`;
     this.monitorService.addNewMonitorLog([{ type: MonitorLogType.info, log }]);
@@ -307,7 +306,6 @@ export class TradeService {
         { crypto: whiteList[0], broker: buy.broker },
         { removeOnComplete: true },
       );
-    this.isCheckBrokerCryptosBusy = false;
   }
 
   /** recursive function with cron job or directly call */
@@ -524,11 +522,13 @@ export class TradeService {
     }
   }
 
+  // اینو باید دوبار پشت هم کال کنم که ببینم ایا اشغال بودن رو فهمیده یا نه... همه چی کامنت میشه تا بشه اینو تست کرد
+
   private async checkBrokerCryptos(
     broker: keyof typeof TradeBroker,
     isBusy?: boolean,
   ): Promise<TradeOfPageManagment | undefined> {
-    if (this.isCheckBrokerCryptosBusy) return;
+    if (this.isCheckBrokerCryptosBusy && !isBusy) return;
     if (isBusy) this.isCheckBrokerCryptosBusy = true;
     let result: TradeOfPageManagment = undefined;
     try {
@@ -570,7 +570,7 @@ export class TradeService {
       // }
       if (broker === TradeBroker.mexc) {
         // call sell in broker
-        // return await (async () => {});
+        return await this.MexcSellCrypto(cryptoSymbol, sellAmount);
       }
     } finally {
       return result;
@@ -927,5 +927,87 @@ export class TradeService {
     // just reload page with job
   }
   async MexcCryptoState() {}
-  async MexcCloseCryptoPosition() {}
+  async MexcSellCrypto(
+    cryptoSymbol: string,
+    sellAmount: number,
+  ): Promise<
+    | {
+        remainAmountBroker: number;
+        endPositionPriceBroker: number;
+      }
+    | undefined
+  > {
+    const trade_symbol = `${cryptoSymbol}_${this.BaseCryptoSymbol}`;
+    const cryptoUrl = `${this.LINK_MEXC_TRADE_PAGE}/${trade_symbol}`;
+    try {
+      if (!this.MexcPage.url().includes(cryptoUrl))
+        await this.MexcPage.goto(cryptoUrl);
+      await this.MexcPage.bringToFront();
+      // set amount money to sell crypto
+      await this.MexcPage.type(
+        'input[data-testid=spot-trade-sellQuantity]',
+        sellAmount.toFixed(2),
+      );
+      // sell action and get notif
+      const sellBtnSelector = 'button[data-testid=spot-trade-orderSellBtn]';
+      const notifSelector = '.ant-message';
+      const notifHTMLStr = await this.MexcPage.evaluate(
+        (sellBtnSelector, notifSelector) => {
+          document.querySelector<HTMLElement>(sellBtnSelector).click();
+          const notifHTMLStr =
+            document.querySelector<HTMLElement>(notifSelector)?.textContent;
+          return notifHTMLStr;
+        },
+        sellBtnSelector,
+        notifSelector,
+      );
+      // get last price as sell price
+      const priceSelectors = 'headline_ellipsisContent__dDkIb';
+      const positionPrice = await this.MexcPage.evaluate((priceSelectors) => {
+        const result: string | number =
+          document.querySelector<HTMLElement>(priceSelectors).innerText;
+        return Number(result);
+      }, priceSelectors);
+      const availableCrypto = await this.MexcPage.evaluate((cryptoSymbol) => {
+        const marketOrderTypeSelector =
+          '.actions_textNowarp__3QcjB.actions_mode__nRnKJ';
+        const availableCryptoSelector = '.actions_itemContent__qOMXm';
+        const unitMoneySelector = '.actions_unitsSpace__i8C7j';
+        const amountMoneySelector = '.actions_valueContent__8bSMo';
+        (
+          [
+            ...document.querySelectorAll(marketOrderTypeSelector),
+          ] as HTMLElement[]
+        )
+          .filter((el) => el.innerText.toLowerCase() === 'market')[0]
+          ?.click();
+        // get available crypto
+        const availableCrypto = [
+          ...document.querySelectorAll(availableCryptoSelector),
+        ]
+          .filter(
+            (el) =>
+              el.querySelector(unitMoneySelector).textContent.toLowerCase() ===
+              cryptoSymbol.toLowerCase(),
+          )[0]
+          .querySelector(amountMoneySelector).textContent;
+        return Number(availableCrypto);
+      }, cryptoSymbol);
+      return {
+        //         notifHTMLStr
+        // positionPrice
+        //
+        endPositionPriceBroker: positionPrice,
+        remainAmountBroker: availableCrypto,
+      };
+      // return notifHTMLStr;
+    } catch (error) {
+      const log = 'Scraper: Buying process in Mexc had wrong.';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+      return undefined;
+    }
+  }
 }
