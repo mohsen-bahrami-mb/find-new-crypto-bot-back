@@ -1,8 +1,6 @@
-// موارد باقی مانده:
-
-// فانکشن چکر روی صفحات گیت و مکسی
-// فانکشن چکر در مواقع خرید باید از طرف بقیه موارد این فانکشن بن بشه
-// فانکشن سلر بایید برای گیت و مکسی زده بشه
+// پیشنهاد بهتر شدن پرفورمنس:
+// فانکشن خرید باید استاپ کنه چکر رو و خودش عملیات انجام بده. بدون صف. با خط بایین پیدا میشه
+// isCheckBrokerCryptosBusy
 
 import {
   BadRequestException,
@@ -369,7 +367,12 @@ export class TradeService {
     let newStartPositionAmount: number;
 
     const tradeOfPageManagment = await this.checkBrokerCryptos(broker, true);
-    if (tradeOfPageManagment) checkTradeStatus(tradeOfPageManagment);
+    if (tradeOfPageManagment)
+      checkTradeStatus(
+        tradeOfPageManagment,
+        this.MexcAvailableMoney,
+        this.percentOfAmount,
+      );
 
     if (succedFullTradeStart) return;
 
@@ -378,19 +381,19 @@ export class TradeService {
     });
 
     try {
-      if (existTrade && this.timeAppropriateFromNow(crypto.requestEnd))
+      const requestEnd = new Date(crypto.requestEnd);
+      if (existTrade && this.timeAppropriateFromNow(requestEnd))
         return await existTrade.updateOne(
           {
             startPositionsPrice: [
               ...existTrade.startPositionsPrice,
               newStartPositionPrice,
             ],
-            startPositionAmount:
-              existTrade.startPositionAmount + newStartPositionAmount,
+            positionAmount: existTrade.positionAmount + newStartPositionAmount,
           },
           { new: true },
         );
-      else if (!existTrade && this.timeAppropriateFromNow(crypto.requestEnd)) {
+      else if (!existTrade && this.timeAppropriateFromNow(requestEnd)) {
         const trade = await this.tradeModle.create({
           broker,
           cryptoPairSymbol,
@@ -399,15 +402,16 @@ export class TradeService {
           cryptoSymbol: crypto.cryptoSymbol,
           startPositionsPrice: [newStartPositionPrice],
           startPositionAmount: newStartPositionAmount,
+          positionAmount: newStartPositionAmount,
           endPositionsPrice: this.defaultEndPositionsPrice.map((def) => ({
             tp: def.tp,
             sl: def.sl,
             percentOfAmount: def.percentOfAmount,
           })),
         });
-        await crypto.updateOne({ trade: trade._id });
+        await crypto.updateOne({ trade: trade._id }, { new: true });
         return trade;
-      } else if (!existTrade && !this.timeAppropriateFromNow(crypto.requestEnd))
+      } else if (!existTrade && !this.timeAppropriateFromNow(requestEnd))
         return await this.tradeModle.create({
           broker,
           cryptoPairSymbol,
@@ -423,22 +427,28 @@ export class TradeService {
       ]);
     }
 
-    function checkTradeStatus({
-      tradeList,
-      acountAmount,
-    }: TradeOfPageManagment) {
+    function checkTradeStatus(
+      { tradeList }: TradeOfPageManagment,
+      availableMoney: number,
+      percentOfAmount: number,
+    ) {
       let result: ChosenTradeOfPageManagment;
-      tradeList?.map((t) => {
-        if (
-          t.symbol === cryptoPairSymbol &&
-          t.amount / acountAmount >
-            this.GateAvailableMoney * (this.percentOfAmount - 0.05) // to ensure the fee: 5 percent tolerance
-        ) {
-          succedFullTradeStart = true;
-          newStartPositionAmount = t.amount;
-          result = t;
-        }
-      });
+      tradeList
+        ?.map((t) => {
+          if (t.symbol === crypto.cryptoSymbol) {
+            if (
+              t.amountUsdt >=
+              availableMoney * (percentOfAmount - 0.03) // to ensure the fee: 3 percent tolerance
+            ) {
+              succedFullTradeStart = true;
+            }
+            newStartPositionAmount = t.amount;
+            newStartPositionPrice = t.price;
+            result = t;
+          } else if (t.symbol === crypto.cryptoSymbol) {
+          }
+        })
+        .filter((t) => t !== undefined)[0];
       return result;
     }
   }
@@ -450,7 +460,7 @@ export class TradeService {
   ) {
     await Promise.all(
       tradeList.map(async (t) => {
-        if (t.amount > 1) {
+        if (t.amountUsdt > 1) {
           const existTrade = await this.tradeModle.findOne({
             state: TradeState.onTrade,
             cryptoSymbol: t.symbol,
@@ -488,14 +498,18 @@ export class TradeService {
           if (!sellData) return;
           const { remainAmountBroker, endPositionPriceBroker } = sellData;
           try {
-            await existTrade.updateOne({
-              state,
-              endPositionsPrice: [
-                ...existTrade.endPositionsPrice,
-                endPositionPriceBroker,
-              ],
-              positionAmount: remainAmountBroker,
-            });
+            const newEndPositionsPrice = [...existTrade.endPositionsPrice];
+            if (newEndPositionsPrice[endPrice.index])
+              newEndPositionsPrice[endPrice.index].endPrice =
+                endPositionPriceBroker;
+            const result = await existTrade.updateOne(
+              {
+                state,
+                endPositionsPrice: newEndPositionsPrice,
+                positionAmount: remainAmountBroker,
+              },
+              { new: true },
+            );
           } catch (error) {
             const log = 'Cannot update trade state for mange it in db.';
             this.logger.error(log, error.stack);
@@ -521,8 +535,6 @@ export class TradeService {
         await this.manageCryptos(mexcPageManagment, TradeBroker.mexc);
     }
   }
-
-  // اینو باید دوبار پشت هم کال کنم که ببینم ایا اشغال بودن رو فهمیده یا نه... همه چی کامنت میشه تا بشه اینو تست کرد
 
   private async checkBrokerCryptos(
     broker: keyof typeof TradeBroker,
@@ -800,13 +812,11 @@ export class TradeService {
               'usdt',
           )[0]
           .querySelector(amountMoneySelector).textContent;
-        return availableMoney;
+        return Number(availableMoney) ?? 0;
       });
-      // set amount money to buy crypto
-      this.MexcAvailableMoney = Number(availableMoney) ?? 0;
       await this.MexcPage.type(
         'input[data-testid=spot-trade-buyTotal]',
-        (this.MexcAvailableMoney * this.percentOfAmount).toFixed(2),
+        (availableMoney * this.percentOfAmount).toFixed(2),
       );
       // buy action and get notif
       const buyBtnSelector = 'button[data-testid=spot-trade-orderBuyBtn]';
@@ -865,8 +875,12 @@ export class TradeService {
     const amountMoneySelector = '.actions_valueContent__8bSMo';
     try {
       if (!this.MexcManageTradePage) await this.initMexcTradePage();
+      await this.MexcManageTradePage.evaluate(() => {
+        window.stop();
+      });
       await this.MexcManageTradePage.goto(
         `${this.LINK_MEXC_TRADE_PAGE}/MX_USDT`,
+        { waitUntil: 'domcontentloaded' },
       );
       await this.MexcManageTradePage.waitForSelector(formTableRowsSelector);
       const { tableRows, acountAmount } =
@@ -879,6 +893,18 @@ export class TradeService {
             amountMoneySelector,
           ) => {
             document.querySelector<HTMLElement>(openPositionsSelector)?.click();
+            /** Array of these values
+             * @type {[
+             * `Crypto`,
+             * `Position Qty.`,
+             * `Frozen`,
+             * `Avg. Buy Price (USDT)`,
+             * `Last Price (USDT)`,
+             * `Est. Cost (USDT)`,
+             * `Est. Value (USDT)`,
+             * `Est. Unrealized PNL (USDT)`
+             * ]}
+             */
             const tableRows: OpenPositionRow[] = [
               ...document.querySelectorAll(`${formTableRowsSelector} > div`),
             ].map((el) =>
@@ -906,13 +932,18 @@ export class TradeService {
           unitMoneySelector,
           amountMoneySelector,
         );
-
       const tradeList = tableRows.map((tr) => ({
         symbol: tr[0],
         state: TradeState.onTrade,
         price: Number(tr[4]),
         amount: Number(tr[1]),
+        amountUsdt: Number(tr[6]),
       }));
+      let availableAccountMoney = 0;
+      tradeList.forEach(
+        (t) => (availableAccountMoney = availableAccountMoney + t.amountUsdt),
+      );
+      this.MexcAvailableMoney = availableAccountMoney;
       return { tradeList, acountAmount };
     } catch (error) {
       const log = 'Cannot load mexc mange trade page.';
@@ -932,6 +963,7 @@ export class TradeService {
     sellAmount: number,
   ): Promise<
     | {
+        notif: string;
         remainAmountBroker: number;
         endPositionPriceBroker: number;
       }
@@ -994,13 +1026,10 @@ export class TradeService {
         return Number(availableCrypto);
       }, cryptoSymbol);
       return {
-        //         notifHTMLStr
-        // positionPrice
-        //
+        notif: notifHTMLStr,
         endPositionPriceBroker: positionPrice,
         remainAmountBroker: availableCrypto,
       };
-      // return notifHTMLStr;
     } catch (error) {
       const log = 'Scraper: Buying process in Mexc had wrong.';
       this.logger.error(log, error.stack);

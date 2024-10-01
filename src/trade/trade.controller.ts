@@ -17,13 +17,11 @@ import { SnapshotDtoParams } from './dto/snapshot.dto';
 import { EndPositionsPriceDto, ManagerDto } from './dto/manager.dto';
 import { StatementParamDto, StatementQueryDto } from './dto/statement.dto';
 import { AuthGuard } from 'src/auth/auth.guard';
+import { TradeState } from 'src/enums/trade.enum';
 
 @Controller('trade')
 export class TradeController {
   constructor(readonly tradeService: TradeService) {}
-
-  @Get()
-  test(@Body() body: any) {}
 
   @UseGuards(AuthGuard)
   @Get('snapshot/:broker')

@@ -17,6 +17,7 @@ export interface ChosenTradeOfPageManagment {
   state: TradeState;
   price: number;
   amount: number;
+  amountUsdt: number;
 }
 
 /** Array of these values
