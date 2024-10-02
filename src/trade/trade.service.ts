@@ -882,17 +882,18 @@ export class TradeService {
         `${this.LINK_MEXC_TRADE_PAGE}/MX_USDT`,
         { waitUntil: 'domcontentloaded' },
       );
+      await this.MexcManageTradePage.bringToFront();
+      await this.MexcManageTradePage.waitForSelector(openPositionsSelector);
+      await (await this.MexcManageTradePage.$(openPositionsSelector)).click();
       await this.MexcManageTradePage.waitForSelector(formTableRowsSelector);
       const { tableRows, acountAmount } =
         await this.MexcManageTradePage.evaluate(
           (
-            openPositionsSelector,
             formTableRowsSelector,
             availableMoneySelector,
             unitMoneySelector,
             amountMoneySelector,
           ) => {
-            document.querySelector<HTMLElement>(openPositionsSelector)?.click();
             /** Array of these values
              * @type {[
              * `Crypto`,
@@ -922,11 +923,10 @@ export class TradeService {
                     .querySelector(unitMoneySelector)
                     .textContent.toLowerCase() === 'usdt',
               )[0]
-              .querySelector(amountMoneySelector).textContent;
+              ?.querySelector(amountMoneySelector)?.textContent;
             const acountAmount = Number(availableMoney);
             return { tableRows, acountAmount };
           },
-          openPositionsSelector,
           formTableRowsSelector,
           availableMoneySelector,
           unitMoneySelector,

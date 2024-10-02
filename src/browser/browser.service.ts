@@ -25,6 +25,7 @@ export class BrowserService {
       this.browser = await puppeteer.launch({
         headless: false,
         executablePath: this.CHROME_APP_PATH,
+        userDataDir: './browser-user-data',
       });
     } catch (error) {
       const log = 'cannot open browser';

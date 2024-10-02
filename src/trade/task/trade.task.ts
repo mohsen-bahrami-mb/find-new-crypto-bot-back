@@ -14,7 +14,7 @@ export class TradeTask {
     @InjectQueue(queue.trade) private tradeQueue: Queue,
     private tradeService: TradeService,
   ) {}
-  @Cron('*/10 * * * * *')
+  @Cron('*/20 * * * * *')
   async checkCryptos() {
     setTimeout(
       () => {
@@ -28,7 +28,7 @@ export class TradeTask {
     );
   }
 
-  @Cron('* * * * *')
+  @Cron('*/2 * * * *')
   async checkLogins() {
     setTimeout(
       () => {
