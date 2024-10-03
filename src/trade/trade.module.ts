@@ -16,6 +16,7 @@ import { TradeProcess } from './process/trade.process';
       { name: DefaultTrade.name, schema: DefaultTradeSchema },
     ]),
     BullModule.registerQueue({ name: queue.trade }),
+    BullModule.registerQueue({ name: queue.finder }),
   ],
   providers: [TradeService, TradeTask, TradeProcess],
   controllers: [TradeController],

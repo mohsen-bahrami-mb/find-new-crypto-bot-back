@@ -5,6 +5,7 @@ export enum queue {
 
 export enum queueJob {
   checkNews = 'checkNews',
+  updateFinderDoc = 'updateFinderDoc',
   checkLogins = 'checkLogins',
   checkTradesInProccess = 'checkTradesInProccess',
   buyChecking = 'buyChecking',

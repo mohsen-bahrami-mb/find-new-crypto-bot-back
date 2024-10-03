@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import type * as Puppeteer from 'puppeteer';
 import { BinanceNews } from 'src/types/finder.type';
 import { Finder, FinderDocument } from './schema/finder.schema';
@@ -133,9 +133,19 @@ export class FinderService {
     return result;
   }
 
+  async updateFinderDoc(
+    docId: string | Types.ObjectId,
+    updateDoc: FinderDocument,
+  ) {
+    return await this.FinderModel.findByIdAndUpdate(docId, updateDoc, {
+      new: true,
+    });
+  }
+
   async checkTargetNews() {
     const newList = await this.newsList();
-    const rgxPattern = /Binance Will List (.+) \((.+)\).* with .+/gi;
+    const rgxPattern =
+      /Binance Will List(?: |, |, and )([\w\s\d]+) \(([\w\s\d]+)\).+/gi;
 
     const newCryptoWillList = newList
       .map((item) => {
@@ -187,7 +197,8 @@ export class FinderService {
   async testStart(binanceNews: BinanceNews[]) {
     // test function - start
     const newList = binanceNews;
-    const rgxPattern = /Binance Will List (.+) \((.+)\).* with .+/gi;
+    const rgxPattern =
+      /Binance Will List(?: |, |, and )([\w\s\d]+) \(([\w\s\d]+)\).+/gi;
 
     const newCryptoWillList = newList
       .map((item) => {

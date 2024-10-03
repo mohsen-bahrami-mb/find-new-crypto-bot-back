@@ -1,4 +1,4 @@
-// پیشنهاد بهتر شدن پرفورمنس:
+// اگه توی خرید دیر عمل کرد، پیشنهاد بهتر شدن پرفورمنس برای خرید سریغتر:
 // فانکشن خرید باید استاپ کنه چکر رو و خودش عملیات انجام بده. بدون صف. با خط بایین پیدا میشه
 // isCheckBrokerCryptosBusy
 
@@ -62,6 +62,7 @@ export class TradeService {
     @InjectModel(DefaultTrade.name)
     private DefaultTradeModle: Model<DefaultTrade>,
     @InjectQueue(queue.trade) private tradeQueue: Queue,
+    @InjectQueue(queue.finder) private finderQueue: Queue,
   ) {
     this.tradeModle = TradeModle;
     this.defaultTradeModle = DefaultTradeModle;
@@ -213,10 +214,8 @@ export class TradeService {
       if (!newEndPos?.[index]?.endPrice) newEndPos[index] = endPos;
     });
     try {
-      return await trade.updateOne(
-        { endPositionsPrice: newEndPos },
-        { new: true },
-      );
+      await trade.updateOne({ endPositionsPrice: newEndPos }, { new: true });
+      return await this.tradeModle.findById(trade.id);
     } catch (error) {
       const log =
         'cannot update trade statment manager: ' + trade._id.toString();
@@ -382,8 +381,8 @@ export class TradeService {
 
     try {
       const requestEnd = new Date(crypto.requestEnd);
-      if (existTrade && this.timeAppropriateFromNow(requestEnd))
-        return await existTrade.updateOne(
+      if (existTrade && this.timeAppropriateFromNow(requestEnd)) {
+        await existTrade.updateOne(
           {
             startPositionsPrice: [
               ...existTrade.startPositionsPrice,
@@ -393,7 +392,8 @@ export class TradeService {
           },
           { new: true },
         );
-      else if (!existTrade && this.timeAppropriateFromNow(requestEnd)) {
+        return await this.tradeModle.findById(existTrade.id);
+      } else if (!existTrade && this.timeAppropriateFromNow(requestEnd)) {
         const trade = await this.tradeModle.create({
           broker,
           cryptoPairSymbol,
@@ -409,7 +409,11 @@ export class TradeService {
             percentOfAmount: def.percentOfAmount,
           })),
         });
-        await crypto.updateOne({ trade: trade._id }, { new: true });
+        await this.finderQueue.add(
+          queueJob.updateFinderDoc,
+          { id: crypto.id, doc: { trade: trade._id } },
+          { removeOnComplete: true },
+        );
         return trade;
       } else if (!existTrade && !this.timeAppropriateFromNow(requestEnd))
         return await this.tradeModle.create({
@@ -502,7 +506,7 @@ export class TradeService {
             if (newEndPositionsPrice[endPrice.index])
               newEndPositionsPrice[endPrice.index].endPrice =
                 endPositionPriceBroker;
-            const result = await existTrade.updateOne(
+            await existTrade.updateOne(
               {
                 state,
                 endPositionsPrice: newEndPositionsPrice,
@@ -787,33 +791,47 @@ export class TradeService {
   }
 
   async MexcBuyCrypto() {
+    const marketOrderTypeSelector =
+      '.actions_textNowarp__3QcjB.actions_mode__nRnKJ';
+    const availableMoneySelector = '.actions_itemContent__qOMXm';
+    const unitMoneySelector = '.actions_unitsSpace__i8C7j';
+    const amountMoneySelector = '.actions_valueContent__8bSMo';
     try {
       await this.MexcPage.bringToFront();
-      const availableMoney = await this.MexcPage.evaluate(() => {
-        const marketOrderTypeSelector =
-          '.actions_textNowarp__3QcjB.actions_mode__nRnKJ';
-        const availableMoneySelector = '.actions_itemContent__qOMXm';
-        const unitMoneySelector = '.actions_unitsSpace__i8C7j';
-        const amountMoneySelector = '.actions_valueContent__8bSMo';
+      await this.MexcPage.waitForSelector(marketOrderTypeSelector);
+      await this.MexcPage.waitForSelector(availableMoneySelector);
+      const availableMoney = await this.MexcPage.evaluate(
         (
-          [
-            ...document.querySelectorAll(marketOrderTypeSelector),
-          ] as HTMLElement[]
-        )
-          .filter((el) => el.innerText.toLowerCase() === 'market')[0]
-          ?.click();
-        // get available money
-        const availableMoney = [
-          ...document.querySelectorAll(availableMoneySelector),
-        ]
-          .filter(
-            (el) =>
-              el.querySelector(unitMoneySelector).textContent.toLowerCase() ===
-              'usdt',
-          )[0]
-          .querySelector(amountMoneySelector).textContent;
-        return Number(availableMoney) ?? 0;
-      });
+          marketOrderTypeSelector,
+          availableMoneySelector,
+          unitMoneySelector,
+          amountMoneySelector,
+        ) => {
+          (
+            [
+              ...document.querySelectorAll(marketOrderTypeSelector),
+            ] as HTMLElement[]
+          )
+            .filter((el) => el.innerText.toLowerCase() === 'market')[0]
+            ?.click();
+          // get available money
+          const availableMoney = [
+            ...document.querySelectorAll(availableMoneySelector),
+          ]
+            .filter(
+              (el) =>
+                el
+                  .querySelector(unitMoneySelector)
+                  .textContent.toLowerCase() === 'usdt',
+            )[0]
+            .querySelector(amountMoneySelector).textContent;
+          return Number(availableMoney) ?? 0;
+        },
+        marketOrderTypeSelector,
+        availableMoneySelector,
+        unitMoneySelector,
+        amountMoneySelector,
+      );
       await this.MexcPage.type(
         'input[data-testid=spot-trade-buyTotal]',
         (availableMoney * this.percentOfAmount).toFixed(2),
