@@ -7,10 +7,15 @@ import { TradeDocument } from 'src/trade/schema/trade.schema';
 @Injectable()
 export class XlsService {
   async generateTradeStatement(
-    res: Response,
     tradeData: TradeDocument,
     finderData: FinderDocument,
-    /** without exec */ fileName?: string,
+    type:
+      | 'string'
+      | 'buffer'
+      | 'base64'
+      | 'binary'
+      | 'file'
+      | 'array' = 'buffer',
   ) {
     const data = [
       ['Crypto Name', tradeData.cryptoName],
@@ -39,12 +44,18 @@ export class XlsService {
 
     const excelBuffer = XLSX.write(workbook, {
       bookType: 'xlsx',
-      type: 'buffer',
+      type,
     });
-    this.sendXlsx(res, excelBuffer, fileName);
+    return excelBuffer;
   }
 
-  private sendXlsx(res: Response, xlsx: any, fileName?: string) {
+  async sendXlsx(
+    res: Response,
+    tradeData: TradeDocument,
+    finderData: FinderDocument,
+    /** without exec */ fileName?: string,
+  ) {
+    const xlsx = await this.generateTradeStatement(tradeData, finderData);
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

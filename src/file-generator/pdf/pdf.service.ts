@@ -14,10 +14,8 @@ export class PdfService {
   constructor(private monitorService: MonitorService) {}
 
   async generateTradeStatement(
-    res: Response,
     tradeData: TradeDocument,
     finderData: FinderDocument,
-    /** without exec */ fileName?: string,
   ) {
     const template: Template = {
       basePdf: BLANK_PDF,
@@ -133,8 +131,7 @@ ${endPositionsPriceStr.join('\n\n')}
     ];
 
     try {
-      const pdf = await generate({ template: template as any, inputs });
-      this.sendPdf(res, pdf, fileName);
+      return await generate({ template: template as any, inputs });
     } catch (error) {
       const log = 'cannot generate and send pdf';
       this.logger.error(log, error.stack);
@@ -144,13 +141,20 @@ ${endPositionsPriceStr.join('\n\n')}
     }
   }
 
-  private sendPdf(res: Response, pdf: Uint8Array, fileName?: string) {
+  // async sendPdf(res: Response, pdf: Uint8Array, fileName?: string) {
+  async sendPdf(
+    res: Response,
+    tradeData: TradeDocument,
+    finderData: FinderDocument,
+    /** without exec */ fileName?: string,
+  ) {
+    const pdf = await this.generateTradeStatement(tradeData, finderData);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
       `attachment; filename=${fileName || 'statement'}.pdf`,
     );
-    res.setHeader('Content-Length', pdf.length);
+    res.setHeader('Content-Length', pdf?.length || 0);
     res.end(pdf);
   }
 }

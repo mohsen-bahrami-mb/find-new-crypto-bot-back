@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Model, Types } from 'mongoose';
 import type * as Puppeteer from 'puppeteer';
 import { BinanceNews } from 'src/types/finder.type';

@@ -4,6 +4,8 @@
 
 import {
   BadRequestException,
+  forwardRef,
+  Inject,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -32,6 +34,10 @@ import { InjectQueue } from '@nestjs/bull';
 import { queue, queueJob } from 'src/enums/redis.enum';
 import { Queue } from 'bull';
 import { Spot, Trade as mTrade } from 'mexc-api-sdk';
+import { TelegramBotService } from 'src/telegram-bot/telegram-bot.service';
+import { XlsService } from 'src/file-generator/xls/xls.service';
+import { PdfService } from 'src/file-generator/pdf/pdf.service';
+import { FinderService } from 'src/finder/finder.service';
 
 @Injectable()
 export class TradeService {
@@ -58,6 +64,11 @@ export class TradeService {
   constructor(
     private browserService: BrowserService,
     private monitorService: MonitorService,
+    @Inject(forwardRef(() => FinderService))
+    private finderService: FinderService,
+    private telegramBotService: TelegramBotService,
+    private xlsService: XlsService,
+    private pdfService: PdfService,
     @InjectModel(Trade.name) private TradeModle: Model<Trade>,
     @InjectModel(DefaultTrade.name)
     private DefaultTradeModle: Model<DefaultTrade>,
@@ -527,6 +538,40 @@ export class TradeService {
               },
               { new: true },
             );
+            const log = `Sell ${t.symbol} in Mexc in this price (${endPositionPriceBroker}). Crypto remain is (${remainAmountBroker})`;
+            this.monitorService.addNewMonitorLog([
+              { type: MonitorLogType.success, log },
+            ]);
+
+            if (state === TradeState.endTrade && this.telegramBotService.bot) {
+              const finder = await this.finderService.finderModel.findOne({
+                trade: existTrade.id,
+              });
+              if (!finder) {
+                const log =
+                  'Trade was ended succefuly. But cannot send statement file in telegram. Bucuse cannot find "Finder" in db.';
+                this.logger.error(log);
+                this.monitorService.addNewMonitorLog([
+                  { type: MonitorLogType.error, log },
+                ]);
+                return;
+              }
+              const filename = `${existTrade.cryptoSymbol}-${new Date().toISOString()}`;
+              const xls = await this.xlsService.generateTradeStatement(
+                existTrade,
+                finder,
+              );
+              await this.telegramBotService.sendDoc(xls, `${filename}.xlsx`);
+              const pdf = await this.pdfService.generateTradeStatement(
+                existTrade,
+                finder,
+              );
+              const pdfBuffer = Buffer.from(pdf);
+              await this.telegramBotService.sendDoc(
+                pdfBuffer,
+                `${filename}.xlsx`,
+              );
+            }
           } catch (error) {
             const log = 'Cannot update trade state for mange it in db.';
             this.logger.error(log, error.stack);

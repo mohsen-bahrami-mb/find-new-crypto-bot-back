@@ -16,6 +16,8 @@ import {
 import { AppConfigService } from 'src/app-config/app-config.service';
 import { Config, ConfigSchema } from 'src/app-config/schema/config.schema';
 import { TelegramBotService } from 'src/telegram-bot/telegram-bot.service';
+import { XlsService } from 'src/file-generator/xls/xls.service';
+import { PdfService } from 'src/file-generator/pdf/pdf.service';
 
 @Module({
   imports: [
@@ -30,11 +32,13 @@ import { TelegramBotService } from 'src/telegram-bot/telegram-bot.service';
   ],
   providers: [
     FinderService,
-    TradeService,
+    TradeService, 
     FinderTask,
     FinderProcess,
     AppConfigService,
     TelegramBotService,
+    XlsService,
+    PdfService,
   ],
   controllers: [FinderController],
 })
