@@ -42,6 +42,7 @@ export class FinderService {
     try {
       this.page?.close();
       this.page = await this.browserService.browser.newPage();
+      await this.page.setViewport({ width: 1200, height: 700 });
     } catch (error) {
       const log = 'cannot init binance page in browser';
       this.logger.error(log, error.stack);
@@ -236,7 +237,7 @@ export class FinderService {
         const endTime = new Date(config.finderEndAt);
         const nowTime = new Date();
         if (nowTime > startTime && nowTime < endTime)
-          this.tradeQueue.add(
+          await this.tradeQueue.add(
             queueJob.newCryptos,
             { result },
             { removeOnComplete: true },

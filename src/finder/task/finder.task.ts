@@ -14,8 +14,8 @@ export class FinderTask {
   @Cron('*/4 * * * * *')
   async handleCron() {
     setTimeout(
-      () => {
-        this.finderQueue.add(
+      async () => {
+        await this.finderQueue.add(
           queueJob.checkNews,
           {},
           { removeOnComplete: true },

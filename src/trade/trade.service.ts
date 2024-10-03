@@ -298,7 +298,7 @@ export class TradeService {
     this.monitorService.addNewMonitorLog([{ type: MonitorLogType.info, log }]);
     // call check buy it in job
     if (buy)
-      this.tradeQueue.add(
+      await this.tradeQueue.add(
         queueJob.buyChecking,
         { crypto: whiteList[0], broker: buy.broker },
         { removeOnComplete: true },
@@ -311,14 +311,14 @@ export class TradeService {
     broker: keyof typeof TradeBroker,
   ) {
     const checker = await this.checkSaveTrade(crypto, broker);
-    if (!checker) {
+    if (checker === undefined) {
       const log = `Buying ${crypto.cryptoSymbol} in ${broker} broker is successed.`;
       this.monitorService.addNewMonitorLog([
         { type: MonitorLogType.success, log },
       ]);
       return;
     }
-    if (checker.state === TradeState.startFailed) {
+    if (checker && checker.state === TradeState.startFailed) {
       const log = `Buying ${crypto.cryptoSymbol} in ${broker} broker was failed.`;
       this.monitorService.addNewMonitorLog([
         { type: MonitorLogType.error, log },
@@ -326,7 +326,7 @@ export class TradeService {
       return;
     }
     // call recursive if buying is not completed
-    this.tradeQueue.add(
+    await this.tradeQueue.add(
       queueJob.buyChecking,
       { crypto, broker },
       { removeOnComplete: true },
@@ -359,25 +359,27 @@ export class TradeService {
   private async checkSaveTrade(
     crypto: FinderDocument,
     broker: keyof typeof TradeBroker,
-  ): Promise<TradeDocument | void> {
+  ): Promise<TradeDocument | void | false> {
     const cryptoPairSymbol = `${crypto.cryptoSymbol}_${this.BaseCryptoSymbol}`;
     let succedFullTradeStart: boolean = false;
     let newStartPositionPrice: number;
     let newStartPositionAmount: number;
 
     const tradeOfPageManagment = await this.checkBrokerCryptos(broker, true);
+    if (!tradeOfPageManagment) return;
     if (tradeOfPageManagment)
       checkTradeStatus(
         tradeOfPageManagment,
         this.MexcAvailableMoney,
         this.percentOfAmount,
       );
-
-    if (succedFullTradeStart) return;
+    if (!newStartPositionPrice || !newStartPositionAmount) return false;
 
     const existTrade = await this.tradeModle.findOne({
       cryptoPairSymbol: cryptoPairSymbol,
     });
+
+    if (existTrade && succedFullTradeStart) return;
 
     try {
       const requestEnd = new Date(crypto.requestEnd);
@@ -388,7 +390,8 @@ export class TradeService {
               ...existTrade.startPositionsPrice,
               newStartPositionPrice,
             ],
-            positionAmount: existTrade.positionAmount + newStartPositionAmount,
+            positionAmount:
+              (existTrade.positionAmount ?? 0) + newStartPositionAmount,
           },
           { new: true },
         );
@@ -423,12 +426,14 @@ export class TradeService {
           cryptoName: crypto.cryptoName,
           cryptoSymbol: crypto.cryptoSymbol,
         });
+      return undefined;
     } catch (error) {
       const log = 'Cannot update or create trade itme in db.';
       this.logger.error(log, error.stack);
       this.monitorService.addNewMonitorLog([
         { type: MonitorLogType.error, log },
       ]);
+      return false;
     }
 
     function checkTradeStatus(
@@ -437,22 +442,19 @@ export class TradeService {
       percentOfAmount: number,
     ) {
       let result: ChosenTradeOfPageManagment;
-      tradeList
-        ?.map((t) => {
-          if (t.symbol === crypto.cryptoSymbol) {
-            if (
-              t.amountUsdt >=
-              availableMoney * (percentOfAmount - 0.03) // to ensure the fee: 3 percent tolerance
-            ) {
-              succedFullTradeStart = true;
-            }
-            newStartPositionAmount = t.amount;
-            newStartPositionPrice = t.price;
-            result = t;
-          } else if (t.symbol === crypto.cryptoSymbol) {
+      tradeList?.map((t) => {
+        if (t.symbol === crypto.cryptoSymbol) {
+          if (
+            t.amountUsdt >=
+            availableMoney * (percentOfAmount - 0.03) // to ensure the fee: 3 percent tolerance
+          ) {
+            succedFullTradeStart = true;
           }
-        })
-        .filter((t) => t !== undefined)[0];
+          newStartPositionAmount = t.amount;
+          newStartPositionPrice = t.price;
+          result = t;
+        }
+      });
       return result;
     }
   }
@@ -475,18 +477,26 @@ export class TradeService {
           let endPrice = { index: NaN, value: NaN };
           // check is target or stop lost toched
           existTrade.endPositionsPrice.forEach((endP, index, arr) => {
+            const slBase =
+              index === 0
+                ? 0
+                : existTrade.startPositionsPrice[0] * arr[index - 1].tp;
             const slPrice =
-              endP.sl *
-              existTrade.startPositionsPrice[0] *
-              (index === 0 ? 1 : arr[index - 1].tp);
-            if (!endP.endPrice && slPrice >= t.price) {
+              existTrade.startPositionsPrice[0] +
+              slBase -
+              endP.sl * existTrade.startPositionsPrice[0];
+            const tpPrice =
+              existTrade.startPositionsPrice[0] +
+              endP.tp * existTrade.startPositionsPrice[0];
+            if (index > 0 && !arr[index - 1].endPrice) return;
+            if (!endP.endPrice && t.price <= slPrice) {
               sellAmount = t.amount;
               state = TradeState.endTrade;
               endPrice = { index, value: t.price };
             }
             if (
               !endP.endPrice &&
-              existTrade.startPositionsPrice[0] * endP.tp <= t.price
+              existTrade.startPositionsPrice[0] * t.price >= tpPrice
             ) {
               sellAmount =
                 endP.percentOfAmount * existTrade.startPositionAmount;
@@ -893,9 +903,6 @@ export class TradeService {
     const amountMoneySelector = '.actions_valueContent__8bSMo';
     try {
       if (!this.MexcManageTradePage) await this.initMexcTradePage();
-      await this.MexcManageTradePage.evaluate(() => {
-        window.stop();
-      });
       await this.MexcManageTradePage.goto(
         `${this.LINK_MEXC_TRADE_PAGE}/MX_USDT`,
         { waitUntil: 'domcontentloaded' },
@@ -975,7 +982,6 @@ export class TradeService {
   async reloadMexcAllWalletCrypto() {
     // just reload page with job
   }
-  async MexcCryptoState() {}
   async MexcSellCrypto(
     cryptoSymbol: string,
     sellAmount: number,
@@ -1003,7 +1009,8 @@ export class TradeService {
       const notifSelector = '.ant-message';
       const notifHTMLStr = await this.MexcPage.evaluate(
         (sellBtnSelector, notifSelector) => {
-          document.querySelector<HTMLElement>(sellBtnSelector).click();
+          // comment for test
+          // document.querySelector<HTMLElement>(sellBtnSelector).click();
           const notifHTMLStr =
             document.querySelector<HTMLElement>(notifSelector)?.textContent;
           return notifHTMLStr;
@@ -1012,7 +1019,7 @@ export class TradeService {
         notifSelector,
       );
       // get last price as sell price
-      const priceSelectors = 'headline_ellipsisContent__dDkIb';
+      const priceSelectors = '.headline_ellipsisContent__dDkIb';
       const positionPrice = await this.MexcPage.evaluate((priceSelectors) => {
         const result: string | number =
           document.querySelector<HTMLElement>(priceSelectors).innerText;
@@ -1049,7 +1056,7 @@ export class TradeService {
         remainAmountBroker: availableCrypto,
       };
     } catch (error) {
-      const log = 'Scraper: Buying process in Mexc had wrong.';
+      const log = 'Scraper: Selling process in Mexc had wrong.';
       this.logger.error(log, error.stack);
       this.monitorService.addNewMonitorLog([
         { type: MonitorLogType.error, log },

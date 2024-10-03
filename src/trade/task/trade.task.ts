@@ -14,11 +14,11 @@ export class TradeTask {
     @InjectQueue(queue.trade) private tradeQueue: Queue,
     private tradeService: TradeService,
   ) {}
-  @Cron('25 */1 * * * *')
+  @Cron('*/22 * * * * *')
   async checkCryptos() {
     setTimeout(
-      () => {
-        this.tradeQueue.add(
+      async () => {
+        await this.tradeQueue.add(
           queueJob.checkTradesInProccess,
           {},
           { removeOnComplete: true },
@@ -28,11 +28,11 @@ export class TradeTask {
     );
   }
 
-  @Cron('*/2 * * * *')
+  @Cron('*/4 * * * *')
   async checkLogins() {
     setTimeout(
-      () => {
-        this.tradeQueue.add(
+      async () => {
+        await this.tradeQueue.add(
           queueJob.checkLogins,
           {},
           { removeOnComplete: true },
