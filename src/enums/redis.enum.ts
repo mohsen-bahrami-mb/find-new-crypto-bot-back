@@ -1,6 +1,7 @@
 export enum queue {
   finder = 'finder',
   trade = 'trade',
+  monitor = 'monitor',
 }
 
 export enum queueJob {
@@ -10,4 +11,5 @@ export enum queueJob {
   checkTradesInProccess = 'checkTradesInProccess',
   buyChecking = 'buyChecking',
   newCryptos = 'newCryptos',
+  addMonitorLog = 'addMonitorLog',
 }

@@ -5,6 +5,9 @@ import { Monitor } from './schema/monitor.schema';
 import { MonitorLogDto } from './dto/monitor.dto';
 import { MonitorGateway } from './monitor.gateway';
 import { TelegramBotService } from 'src/telegram-bot/telegram-bot.service';
+import { Queue } from 'bull';
+import { queue, queueJob } from 'src/enums/redis.enum';
+import { InjectQueue } from '@nestjs/bull';
 
 @Injectable()
 export class MonitorService {
@@ -16,6 +19,7 @@ export class MonitorService {
     @Inject(forwardRef(() => MonitorGateway))
     private monitorGateway: MonitorGateway,
     private telegramBotService: TelegramBotService,
+    @InjectQueue(queue.monitor) private monitorQueue: Queue,
   ) {
     this.monitorModel = MonitorModel;
   }
@@ -50,6 +54,14 @@ export class MonitorService {
   }
 
   async addNewMonitorLog(data: MonitorLogDto[]) {
+    await this.monitorQueue.add(
+      queueJob.addMonitorLog,
+      { monitorLogs: data },
+      { removeOnComplete: true },
+    );
+  }
+
+  async generateMonitorLog(data: MonitorLogDto[]) {
     const docCount = await this.monitorModel.countDocuments();
     const maopData = data.map((d, i) => ({
       count: docCount + i + 1,
