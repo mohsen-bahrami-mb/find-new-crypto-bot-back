@@ -202,13 +202,15 @@ export class TradeService {
     body: EndPositionsPriceDto[],
   ) {
     const trade = await this.tradeModle.findById(id);
-    if (
-      !trade ||
-      [TradeState.endTrade, TradeState.startFailed].includes(trade.state)
-    )
+    if (!trade)
       return new NotFoundException('Not Found Trade', {
         description: `Not Found Trade id: ${id}`,
       });
+    if ([TradeState.endTrade, TradeState.startFailed].includes(trade.state))
+      return new BadRequestException('Cannot Update "Faild" Or "End" Trades', {
+        description: `Trade id: ${id}`,
+      });
+
     const newEndPos = [...trade.endPositionsPrice];
     body.forEach((endPos, index) => {
       if (!newEndPos?.[index]?.endPrice) newEndPos[index] = endPos;
@@ -377,6 +379,7 @@ export class TradeService {
 
     const existTrade = await this.tradeModle.findOne({
       cryptoPairSymbol: cryptoPairSymbol,
+      state: TradeState.onTrade,
     });
 
     if (existTrade && succedFullTradeStart) return;
@@ -585,9 +588,11 @@ export class TradeService {
     | undefined
   > {
     let result: {
+      notif: string;
       remainAmountBroker: number;
       endPositionPriceBroker: number;
     } = undefined;
+    if (!cryptoSymbol || !sellAmount) return result;
     try {
       // deactive gate website
       // if (broker === TradeBroker.gate) {
@@ -596,7 +601,7 @@ export class TradeService {
       // }
       if (broker === TradeBroker.mexc) {
         // call sell in broker
-        return await this.MexcSellCrypto(cryptoSymbol, sellAmount);
+        result = await this.MexcSellCrypto(cryptoSymbol, sellAmount);
       }
     } finally {
       return result;
@@ -1009,8 +1014,7 @@ export class TradeService {
       const notifSelector = '.ant-message';
       const notifHTMLStr = await this.MexcPage.evaluate(
         (sellBtnSelector, notifSelector) => {
-          // comment for test
-          // document.querySelector<HTMLElement>(sellBtnSelector).click();
+          document.querySelector<HTMLElement>(sellBtnSelector).click();
           const notifHTMLStr =
             document.querySelector<HTMLElement>(notifSelector)?.textContent;
           return notifHTMLStr;
