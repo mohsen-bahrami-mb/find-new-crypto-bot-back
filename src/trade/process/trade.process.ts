@@ -26,7 +26,7 @@ export class TradeProcess {
     this.tradeService.buyChecking(job.data.crypto, job.data.broker);
   }
 
-  @Process(queueJob.checkTradesInProccess)
+  @Process({ name: queueJob.checkTradesInProccess, concurrency: 1 })
   async checkTradesInProccess(job: Job<unknown>) {
     if (!this.timeAvaliable || this.timeAvaliable < Date.now()) {
       this.tradeService.checkCryptosInProccess();

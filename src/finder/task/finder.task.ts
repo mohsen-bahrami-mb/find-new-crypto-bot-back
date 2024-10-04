@@ -18,7 +18,7 @@ export class FinderTask {
         await this.finderQueue.add(
           queueJob.checkNews,
           {},
-          { removeOnComplete: true },
+          { removeOnComplete: true, attempts: 5, backoff: 5000 },
         );
       },
       random(800, 1300),

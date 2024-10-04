@@ -33,6 +33,7 @@ import { APP_FILTER } from '@nestjs/core';
       redis: {
         host: process.env.REDIS_HOST,
         port: Number(process.env.REDIS_PORT),
+        maxRetriesPerRequest: 100,
       },
     }),
     ScheduleModule.forRoot(),

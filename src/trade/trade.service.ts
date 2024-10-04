@@ -314,7 +314,7 @@ export class TradeService {
       await this.tradeQueue.add(
         queueJob.buyChecking,
         { crypto: whiteList[0], broker: buy.broker },
-        { removeOnComplete: true },
+        { removeOnComplete: true, attempts: 5, backoff: 5000 },
       );
   }
 
@@ -342,7 +342,7 @@ export class TradeService {
     await this.tradeQueue.add(
       queueJob.buyChecking,
       { crypto, broker },
-      { removeOnComplete: true },
+      { removeOnComplete: true, attempts: 5, backoff: 5000 },
     );
   }
 
@@ -429,7 +429,7 @@ export class TradeService {
         await this.finderQueue.add(
           queueJob.updateFinderDoc,
           { id: crypto.id, doc: { trade: trade._id } },
-          { removeOnComplete: true },
+          { removeOnComplete: true, attempts: 5, backoff: 5000 },
         );
         return trade;
       } else if (!existTrade && !this.timeAppropriateFromNow(requestEnd))
@@ -817,7 +817,7 @@ export class TradeService {
     try {
       if (!this.browserService.browser) await this.browserService.initBrowser();
       if (!this.MexcPage) await this.initMexcPage();
-      if (!this.LINK_MEXC_TRADE_PAGE.includes(this.MexcPage.url()))
+      if (!this.MexcPage.url().includes(this.LINK_MEXC_TRADE_PAGE))
         await this.MexcPage.goto(`${this.LINK_MEXC_TRADE_PAGE}/MX_USDT`);
       await this.MexcPage.bringToFront();
       let loginBtn: Puppeteer.ElementHandle<Element> | null = null;
@@ -952,11 +952,11 @@ export class TradeService {
     const unitMoneySelector = '.actions_unitsSpace__i8C7j';
     const amountMoneySelector = '.actions_valueContent__8bSMo';
     try {
-      if (!this.MexcManageTradePage) await this.initMexcTradePage();
-      await this.MexcManageTradePage.goto(
-        `${this.LINK_MEXC_TRADE_PAGE}/MX_USDT`,
-        { waitUntil: 'domcontentloaded' },
-      );
+      if (
+        !this.MexcManageTradePage ||
+        !this.MexcPage.url().includes(this.LINK_MEXC_TRADE_PAGE)
+      )
+        await this.MexcAllWalletCryptoReload();
       await this.MexcManageTradePage.bringToFront();
       await this.MexcManageTradePage.waitForSelector(openPositionsSelector);
       await (await this.MexcManageTradePage.$(openPositionsSelector)).click();
@@ -1021,7 +1021,7 @@ export class TradeService {
       this.MexcAvailableMoney = availableAccountMoney;
       return { tradeList, acountAmount };
     } catch (error) {
-      const log = 'Cannot load mexc mange trade page.';
+      const log = 'Cannot check mexc mange trade details.';
       this.logger.error(log, error.stack);
       this.monitorService.addNewMonitorLog([
         { type: MonitorLogType.error, log },
@@ -1029,8 +1029,25 @@ export class TradeService {
       return undefined;
     }
   }
-  async reloadMexcAllWalletCrypto() {
-    // just reload page with job
+  async MexcAllWalletCryptoReload() {
+    if (!this.MexcManageTradePage) await this.initMexcTradePage();
+    const openPositionsSelector =
+      '.orders_tab__F1mi5.mxc-short-tab.orders_statistic__34QOw';
+    try {
+      await this.MexcManageTradePage.goto(
+        `${this.LINK_MEXC_TRADE_PAGE}/MX_USDT`,
+        { waitUntil: 'domcontentloaded' },
+      );
+      await this.MexcManageTradePage.bringToFront();
+      await this.MexcManageTradePage.waitForSelector(openPositionsSelector);
+      await (await this.MexcManageTradePage.$(openPositionsSelector)).click();
+    } catch (error) {
+      const log = 'Cannot reload mexc mange trade page.';
+      this.logger.error(log, error.stack);
+      this.monitorService.addNewMonitorLog([
+        { type: MonitorLogType.error, log },
+      ]);
+    }
   }
   async MexcSellCrypto(
     cryptoSymbol: string,

@@ -14,7 +14,7 @@ export class TradeTask {
     @InjectQueue(queue.trade) private tradeQueue: Queue,
     private tradeService: TradeService,
   ) {}
-  @Cron('12,34 * * * * *')
+  @Cron('*/2 * * * * *')
   async checkCryptos() {
     setTimeout(
       async () => {
@@ -26,6 +26,11 @@ export class TradeTask {
       },
       random(800, 1300),
     );
+  }
+
+  @Cron('20 */3 * * * *')
+  async MexcAllWalletCryptoReload() {
+    await this.tradeService.MexcAllWalletCryptoReload();
   }
 
   @Cron('55 */3 * * * *')
