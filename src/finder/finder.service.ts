@@ -190,7 +190,11 @@ export class FinderService {
         const endTime = new Date(config.finderEndAt);
         const nowTime = new Date();
         if (nowTime > startTime && nowTime < endTime)
-          await this.tradeService.newCryptos(result);
+          await this.tradeQueue.add(
+            queueJob.newCryptos,
+            { result },
+            { removeOnComplete: true, attempts: 5, backoff: 5000 },
+          );
       } catch (error) {
         const log =
           'cannot insert new crypot finded in db, therefore cannot call trade service';
