@@ -62,25 +62,23 @@ export class FinderService {
     try {
       if (!this.browserService.browser) return;
       if (!this.page) await this.initPage();
-      const list_cssSelector = '.css-14d7djd .css-5bvwfc + div .css-1q4wrpt';
+      const list_cssSelector =
+        '.bn-flex.flex-col.py-6 > div > div.bn-flex.w-full.flex-col.gap-4';
       // scarping - load page
       const requestStart = new Date();
       await this.page.goto(this.LINK_BINANCE_NEW_CRYPTO_LIST);
       await this.page.waitForSelector(list_cssSelector);
       // scarping - chose section
       let data: BinanceNews[] = await this.page.evaluate((list_cssSelector) => {
-        const list = document.querySelectorAll(list_cssSelector)[1];
+        const list = document.querySelectorAll(list_cssSelector);
         let target = [];
-        list.querySelectorAll('div > div').forEach((el) => {
+        Array.from(list).forEach((node) => {
+          const el = node.querySelector('div');
           const result = {
             newsUrl: el.querySelector('a')?.href,
-            newsTitle: el.querySelector('div')?.innerText,
-            newsDate: el.querySelector('div h6')?.innerHTML,
+            newsTitle: el.querySelector('a')?.innerText,
+            newsDate: el.querySelector('div')?.innerHTML,
           };
-          result.newsTitle = result.newsTitle.slice(
-            0,
-            result.newsTitle.length - result.newsDate.length,
-          );
           target.push(result);
         });
         return target;
