@@ -922,12 +922,14 @@ export class TradeService {
 
   async MexcLoginPage(res: Response) {
     try {
-      const qrHoverToShowSeloctor = '.Form_qrcodeTxt__8TIo0';
-      const qrCodeSelector = '.QrcodeLogin_qrcode__IGJHy';
+      const qrHoverToShowSeloctor = '.Form_qrcodeCom__Rj8yx';
+      const qrCodeSelector = '.QrcodeLogin_qrcode__lEDp9';
       if (!this.browserService.browser) await this.browserService.initBrowser();
       if (!this.MexcPage) await this.initMexcPage();
       await this.MexcPage.goto(this.LINK_MEXC_LOGIN_PAGE);
       await this.MexcPage.bringToFront();
+      if (!qrHoverToShowSeloctor && !qrCodeSelector)
+        throw new Error('Cannot find qr selecor!');
       await this.MexcPage.waitForSelector(qrHoverToShowSeloctor);
       await this.MexcPage.hover(qrHoverToShowSeloctor);
       await this.MexcPage.waitForSelector(qrCodeSelector);
