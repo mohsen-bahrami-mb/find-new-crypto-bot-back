@@ -945,6 +945,7 @@ export class TradeService {
     }
   }
 
+  // فقط این دوتا متد مونده
   async MexcAllWalletCrypto(): Promise<TradeOfPageManagment | undefined> {
     if (!this.isLoginMexcPage) return;
     const openPositionsSelector =
@@ -1031,6 +1032,8 @@ export class TradeService {
       return undefined;
     }
   }
+
+  // فقط این دوتا متد مونده
   async MexcAllWalletCryptoReload() {
     if (!this.MexcManageTradePage) await this.initMexcTradePage();
     const openPositionsSelector =
@@ -1069,10 +1072,10 @@ export class TradeService {
         await this.MexcPage.goto(cryptoUrl);
       await this.MexcPage.bringToFront();
       // set amount money to sell crypto
-      await this.MexcPage.type(
-        'input[data-testid=spot-trade-sellQuantity]',
-        sellAmount.toFixed(2),
-      );
+      const sellTabButtonSelector = '.actions_sellBtn__WE9kM';
+      const sellInputSelector = 'input[data-testid=spot-trade-sellQuantity]';
+      await (await this.MexcPage.$(sellTabButtonSelector)).click();
+      await this.MexcPage.type(sellInputSelector, sellAmount.toFixed(2));
       // sell action and get notif
       const sellBtnSelector = 'button[data-testid=spot-trade-orderSellBtn]';
       const notifSelector = '.ant-message';
