@@ -23,6 +23,11 @@ import { TradeState } from 'src/enums/trade.enum';
 export class TradeController {
   constructor(readonly tradeService: TradeService) {}
 
+  // @Get('')
+  // test(@Res() res: Response) {
+  //   return this.tradeService.MexcLoginPage(res);
+  // }
+
   @UseGuards(AuthGuard)
   @Get('snapshot/:broker')
   brokerSnapshot(@Res() res: Response, @Param() params: SnapshotDtoParams) {
