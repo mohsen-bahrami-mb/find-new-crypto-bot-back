@@ -856,10 +856,12 @@ export class TradeService {
     const availableMoneySelector = '.actions_itemContent__qOMXm';
     const unitMoneySelector = '.actions_unitsSpace__i8C7j';
     const amountMoneySelector = '.actions_valueContent__8bSMo';
+    const buyTabButtonSelector = '.actions_buyBtn__ySCEX';
     try {
       await this.MexcPage.bringToFront();
       await this.MexcPage.waitForSelector(marketOrderTypeSelector);
       await this.MexcPage.waitForSelector(availableMoneySelector);
+      await (await this.MexcPage.$(buyTabButtonSelector)).click();
       const availableMoney = await this.MexcPage.evaluate(
         (
           marketOrderTypeSelector,
@@ -945,11 +947,11 @@ export class TradeService {
     }
   }
 
-  // فقط این دوتا متد مونده
   async MexcAllWalletCrypto(): Promise<TradeOfPageManagment | undefined> {
     if (!this.isLoginMexcPage) return;
     const openPositionsSelector =
       '.orders_tab__F1mi5.mxc-short-tab.orders_statistic__34QOw';
+    // فقط این باید چک بشه
     const formTableRowsSelector = '.ant-form.ant-form-horizontal';
     const availableMoneySelector = '.actions_itemContent__qOMXm';
     const unitMoneySelector = '.actions_unitsSpace__i8C7j';
@@ -1033,7 +1035,6 @@ export class TradeService {
     }
   }
 
-  // فقط این دوتا متد مونده
   async MexcAllWalletCryptoReload() {
     if (!this.MexcManageTradePage) await this.initMexcTradePage();
     const openPositionsSelector =
