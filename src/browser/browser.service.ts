@@ -23,7 +23,7 @@ export class BrowserService {
   async initBrowser() {
     try {
       this.browser = await puppeteer.launch({
-        headless: true,
+        headless: false,
         executablePath: this.CHROME_APP_PATH,
         userDataDir: './browser-user-data',
       });
