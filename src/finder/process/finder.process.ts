@@ -21,7 +21,9 @@ export class FinderProcess {
   }
 
   @Process(queueJob.updateFinderDoc)
-  async updateFinderDoc(job: Job<{ id: string | Types.ObjectId; doc: FinderDocument }>) {
+  async updateFinderDoc(
+    job: Job<{ id: string | Types.ObjectId; doc: FinderDocument }>,
+  ) {
     await this.finderService.updateFinderDoc(job.data.id, job.data.doc);
   }
 }
