@@ -1,5 +1,5 @@
 import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
-import TelegramBot from 'node-telegram-bot-api';
+import * as TelegramBot from 'node-telegram-bot-api';
 import { AppConfigService } from 'src/app-config/app-config.service';
 import * as bcrypt from 'bcrypt';
 import internal from 'stream';
@@ -71,8 +71,16 @@ export class TelegramBotService {
 
   private initBot(token: string) {
     try {
-      this.bot = new TelegramBot(token, { webHook: true });
-      this.bot.setWebHook(`${this.HOST}/telegram-bot`);
+      this.bot = new TelegramBot(token, {
+        polling: {
+          interval: 3000,
+          autoStart: true,
+          params: {
+            timeout: 10,
+          },
+        },
+      });
+      // this.bot.setWebHook(`${this.HOST}/telegram-bot`);
     } catch (error) {
       const log = 'cannot start telegram bot';
       this.logger.error(log, error.stack);
