@@ -86,7 +86,7 @@ export class AppConfigService {
         { type: MonitorLogType.error, log: log },
       ]);
     }
-    if (this.config.telegramToken)
+    if (this.config.telegramToken && !this.telegramBotService.bot)
       this.telegramBotService.startBot(this.config.telegramToken);
     return this.returnConfig();
   }

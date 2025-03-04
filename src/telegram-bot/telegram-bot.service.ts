@@ -28,6 +28,7 @@ export class TelegramBotService {
   }
 
   public startBot(token: string) {
+    if (this.bot) return;
     this.initBot(token);
     this.onStart();
     this.onCheckPassword();
@@ -71,10 +72,8 @@ export class TelegramBotService {
 
   private initBot(token: string) {
     try {
-      this.bot = new TelegramBot(token, {
-        webHook: true,
-      });
-      this.bot.setWebHook(`${this.HOST}/telegram-bot`);
+      this.bot = new TelegramBot(token, { polling: true });
+      // this.bot.setWebHook(`${this.HOST}/telegram-bot`);
     } catch (error) {
       const log = 'cannot start telegram bot';
       this.logger.error(log, error.stack);
