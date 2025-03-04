@@ -62,3 +62,6 @@ yarn.lock
 
 # browser data
 /browser-user-data
+
+# cert
+.certs
