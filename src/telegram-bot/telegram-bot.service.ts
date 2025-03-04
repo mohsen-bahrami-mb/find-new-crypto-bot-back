@@ -72,15 +72,9 @@ export class TelegramBotService {
   private initBot(token: string) {
     try {
       this.bot = new TelegramBot(token, {
-        polling: {
-          interval: 3000,
-          autoStart: true,
-          params: {
-            timeout: 10,
-          },
-        },
+        webHook: true,
       });
-      // this.bot.setWebHook(`${this.HOST}/telegram-bot`);
+      this.bot.setWebHook(`${this.HOST}/telegram-bot`);
     } catch (error) {
       const log = 'cannot start telegram bot';
       this.logger.error(log, error.stack);
