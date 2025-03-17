@@ -8,7 +8,11 @@ RUN chown -R backendApp:backendApp /backendApp
 
 USER backendApp
 
-# COPY ./browser-user-data .
+# should mount with volume
+RUN mkdir .cert
+# should mount with volume
+RUN mkdir browser-user-data
+
 COPY package.json .
 
 RUN npm i -f

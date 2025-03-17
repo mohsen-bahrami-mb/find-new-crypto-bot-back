@@ -1,5 +1,6 @@
-.cert/
 dist/
+.cert/
+browser-user-data/
 
 .git/
 node_modules/
