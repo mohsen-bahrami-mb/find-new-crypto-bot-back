@@ -6,12 +6,20 @@ import { ConfigService } from '@nestjs/config';
 import { readFileSync } from 'node:fs';
 
 async function bootstrap() {
+  const privateKey = process.env.PRIVATE_KEY;
+  const publicKey = process.env.PUBLIC_KEY;
+  const httpsConfig =
+    privateKey && publicKey
+      ? {
+          httpsOptions: {
+            key: readFileSync(privateKey),
+            cert: readFileSync(publicKey),
+          },
+        }
+      : {};
   const app = await NestFactory.create(AppModule, {
     cors: true,
-    httpsOptions: {
-      key: readFileSync(process.env.PRIVATE_KEY),
-      cert: readFileSync(process.env.PUBLIC_KEY),
-    },
+    ...httpsConfig,
   });
   const appConfigService = app.get(ConfigService);
   app.useGlobalPipes(new ValidationPipe());
