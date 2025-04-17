@@ -28,10 +28,10 @@ export class TelegramBotService {
   }
 
   public startBot(token: string) {
-    if (this.bot) return;
-    this.initBot(token);
-    this.onStart();
-    this.onCheckPassword();
+    // if (this.bot) return;
+    // this.initBot(token);
+    // this.onStart();
+    // this.onCheckPassword();
   }
 
   public async sendMessage(msg: string) {
